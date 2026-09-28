@@ -1,0 +1,4 @@
+{
+  "name": "My Environment",
+  "postCreateCommand": "curl -fsSL https://opencode.ai/install | bash"
+}
