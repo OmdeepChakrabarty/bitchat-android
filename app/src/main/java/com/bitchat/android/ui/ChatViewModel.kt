@@ -387,6 +387,28 @@ class ChatViewModel(
     val passwordPromptChannel: StateFlow<String?> = state.passwordPromptChannel
     val hasUnreadChannels = state.hasUnreadChannels
     val hasUnreadPrivateMessages = state.hasUnreadPrivateMessages
+
+    /**
+     * Unread messages across every conversation, for the count in the conversation list's back
+     * affordance.
+     *
+     * Derived rather than stored, because the two sources already keep exact counts — a map of
+     * per-conversation unread totals for private messages, and one for channels. The back
+     * affordance only needs their sum, and recomputing it on read beats maintaining a third
+     * counter that could drift from the two it summarises.
+     */
+    val totalUnreadCount: StateFlow<Int> = combine(
+        com.bitchat.android.services.AppStateStore.unreadPrivateMessageCounts,
+        state.unreadChannelMessages
+    ) { privateCounts, channelCounts ->
+        privateCounts.values.sum() + channelCounts.values.sum()
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = 0
+        )
     val showCommandSuggestions: StateFlow<Boolean> = state.showCommandSuggestions
     val commandSuggestions: StateFlow<List<CommandSuggestion>> = state.commandSuggestions
     val showMentionSuggestions: StateFlow<Boolean> = state.showMentionSuggestions

@@ -1,5 +1,6 @@
 package com.bitchat.android.ui
 
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -55,14 +56,21 @@ import com.bitchat.android.net.ArtiTorManager
 import com.bitchat.android.net.TorMode
 import com.bitchat.android.ui.theme.BitchatMotion
 import com.bitchat.android.ui.theme.LocalBitchatPalette
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.text.style.TextAlign
 
 /**
  * Header components for ChatScreen
  * Extracted from ChatScreen.kt for better organization
  */
 
-/** Height of the chat top bar. Taller than the old 42.dp so 44.dp tap targets fit properly. */
-val ChatHeaderHeight = 52.dp
+/**
+ * Height of the chat top bar.
+ *
+ * Compact by design: this is a single line of identity and a row of actions, drawn with a
+ * hairline underneath rather than elevation, and it stays out of the way of the transcript.
+ */
+val ChatHeaderHeight = 44.dp
 
 /**
  * The single visible glyph size used by every icon in the top bar.
@@ -75,14 +83,16 @@ internal val HeaderIconSize = 19.dp
 /**
  * Text size for the top bar's labels: nickname, channel name, peer count.
  *
- * A step up from the 15.sp body scale. The bar is the app's primary status readout and was
- * noticeably harder to read than the messages below it; the extra point costs nothing because
- * the bar's height is driven by [HeaderTapTarget], not by the text.
+ * Titles are near-black and semi-bold, the way a classic list header sets its subject; only the
+ * actions go blue. Keeping the title dark is what stops the bar reading as a link.
  */
-private val HeaderTextSize = 17.sp
+private val HeaderTextSize = 16.sp
 
 /** Minimum tap target for every interactive element in the header. */
-private val HeaderTapTarget = 44.dp
+internal val HeaderTapTarget = 44.dp
+
+/** Label size for the blue text actions at the edges of the bar. */
+internal val HeaderActionTextSize = 15.sp
 
 internal enum class HeaderCrowdingMode {
     Full,
@@ -107,7 +117,7 @@ internal fun locationChannelContentDescription(
 }
 
 /** Corner radius for the header's tappable label+icon clusters. */
-private val HeaderClusterShape = RoundedCornerShape(8.dp)
+internal val HeaderClusterShape = RoundedCornerShape(8.dp)
 
 /**
  * Edge insets for the bar.
@@ -511,6 +521,109 @@ fun ConversationHeaderStatus(
     )
 }
 
+/**
+ * The reference conversation header: a blue "< Messages (N)" on the leading edge, the
+ * conversation's name centred, and a single blue text action on the trailing edge.
+ *
+ * Deliberately not a `TopAppBar`. The three regions are specified explicitly so the leading
+ * back link, the centred title and the trailing action land where the reference puts them,
+ * and so the bar is a fixed 44.dp with a hairline under it rather than a component that brings
+ * its own height and elevation.
+ */
+@Composable
+fun ConversationNavBar(
+    title: String,
+    backLabel: String,
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    leadingBadge: (@Composable () -> Unit)? = null,
+    trailingAction: (@Composable () -> Unit)? = null,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val palette = LocalBitchatPalette.current
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(palette.barBackground)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(ChatHeaderHeight)
+        ) {
+            // Three fixed-width lanes. The title sits in the middle lane and is centred within
+            // it, so it stays optically centred even though the leading link is wider than the
+            // trailing action.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(ChatHeaderHeight)
+                    .padding(start = HeaderInsetStart, end = HeaderInsetEnd),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(1.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(HeaderClusterShape)
+                        .pressScaleClickable(
+                            onClick = onBackClick,
+                            onClickLabel = backLabel
+                        )
+                        .padding(horizontal = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = palette.tint
+                    )
+                    Text(
+                        text = backLabel,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = HeaderActionTextSize,
+                            fontWeight = FontWeight.Normal
+                        ),
+                        color = palette.tint,
+                        maxLines = 1
+                    )
+                }
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    trailingAction?.invoke()
+                }
+            }
+
+            leadingBadge?.let {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(start = HeaderInsetStart),
+                    contentAlignment = Alignment.CenterStart
+                ) { it() }
+            }
+        }
+        HorizontalDivider(thickness = HairlineThickness, color = palette.separator)
+    }
+}
+
 @Composable
 fun NicknameEditor(
     value: String,
@@ -727,6 +840,7 @@ private fun MainHeader(
     val isConnected by viewModel.isConnected.collectAsStateWithLifecycle()
     val selectedLocationChannel by viewModel.selectedLocationChannel.collectAsStateWithLifecycle()
     val geohashPeople by viewModel.geohashPeople.collectAsStateWithLifecycle()
+    val totalUnread by viewModel.totalUnreadCount.collectAsStateWithLifecycle()
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val crowdingMode = headerCrowdingMode(maxWidth)
@@ -738,30 +852,64 @@ private fun MainHeader(
                 .padding(start = HeaderInsetStart, end = HeaderInsetEnd),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Keep the brand and trailing actions fixed. Only the nickname yields under pressure.
-            BitChatBrandButton(
-                onClick = onTitleClick,
-                onTripleClick = onTripleTitleClick,
-                contentDescription = stringResource(R.string.cd_open_about),
-                modifier = Modifier.size(HeaderTapTarget),
-            )
+            // Leading action: back to the conversation list, carrying the number of messages
+            // waiting elsewhere. Blue text, because it is a link out of the current view rather
+            // than an identity label.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(1.dp),
+                modifier = Modifier
+                    .clip(HeaderClusterShape)
+                    .pressScaleClickable(
+                        onClick = onSidebarClick,
+                        onClickLabel = stringResource(R.string.conversations)
+                    )
+                    .padding(horizontal = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = palette.tint
+                )
+                Text(
+                    text = if (totalUnread > 0) {
+                        stringResource(R.string.messages_with_unread, totalUnread)
+                    } else {
+                        stringResource(R.string.messages_title)
+                    },
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = HeaderActionTextSize,
+                        fontWeight = FontWeight.Normal
+                    ),
+                    color = palette.tint,
+                    maxLines = 1
+                )
+            }
 
-            // Nudge toward the brand glyph: the 44.dp tap target leaves more optical gap than the
-            // spacing between the mark and path label.
+            // Identity: a compact path label showing where you are and who you are. The brand
+            // glyph survives as a long-press-and-triple-click target so the existing
+            // about/panic affordances keep working.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .weight(1f)
-                    .offset(x = (-6).dp)
+                    .padding(start = 8.dp)
             ) {
+                BitChatBrandButton(
+                    onClick = onTitleClick,
+                    onTripleClick = onTripleTitleClick,
+                    contentDescription = stringResource(R.string.cd_open_about),
+                    modifier = Modifier.size(28.dp),
+                )
                 Text(
                     text = "/",
                     style = MaterialTheme.typography.bodyMedium,
                     fontSize = HeaderTextSize,
                     // Dimmed: the slash is a separator, not content. At full brightness it competed
                     // with the nickname beside it.
-                    color = colorScheme.primary.copy(alpha = 0.45f),
-                    modifier = Modifier.padding(end = 2.dp)
+                    color = colorScheme.onSurface.copy(alpha = 0.45f),
+                    modifier = Modifier.padding(start = 6.dp, end = 2.dp)
                 )
 
                 NicknameEditor(

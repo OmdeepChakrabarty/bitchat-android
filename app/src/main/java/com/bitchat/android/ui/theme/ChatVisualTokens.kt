@@ -1,69 +1,114 @@
 package com.bitchat.android.ui.theme
 
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bitchat.android.R
 
 /**
- * The bundled Geist Mono family used throughout the app.
+ * App-wide type family.
  *
- * Keeping the fonts in the APK preserves offline behavior and guarantees that the design-spec
- * metrics do not depend on which monospace family a device happens to provide.
+ * Uses the platform sans-serif so no font binary ships in the APK and the app inherits the
+ * device's native system face. This is the single source of truth: hundreds of call sites pass
+ * `BitchatFontFamily` explicitly, so swapping the value here retunes all of them at once.
  */
-internal val BitchatFontFamily = FontFamily(
-    Font(R.font.geist_mono_regular, FontWeight.Normal),
-    Font(R.font.geist_mono_medium, FontWeight.Medium),
-    Font(R.font.geist_mono_semibold, FontWeight.SemiBold),
-    Font(R.font.geist_mono_bold, FontWeight.Bold),
-)
+internal val BitchatFontFamily: FontFamily = FontFamily.SansSerif
 
-/** Exact typography, spacing, and opacity values exported for the chat transcript. */
+/**
+ * Exact typography, spacing, and opacity values for the classic messenger surface.
+ *
+ * All chrome measurements live here so the conversation, the list, and the composer stay
+ * dimensionally consistent — the whole design leans on a tight, flat, hairline-separated
+ * layout, which only holds together if there is exactly one place that defines it.
+ */
 internal object ChatVisualTokens {
-    val MessageBodyFontSize: TextUnit = 14.sp
-    val MessageBodyLineHeight: TextUnit = 20.sp
-    val SenderFontSize: TextUnit = 14.sp
-    val SenderLineHeight: TextUnit = 16.sp
+    // MARK: - Typography
+
+    val MessageBodyFontSize: TextUnit = 15.sp
+    val MessageBodyLineHeight: TextUnit = 19.sp
+    val SenderFontSize: TextUnit = 12.sp
+    val SenderLineHeight: TextUnit = 14.sp
     val SystemActionFontSize: TextUnit = 12.sp
-    val SystemActionLineHeight: TextUnit = 16.sp
+    val SystemActionLineHeight: TextUnit = 15.sp
     val SystemTimeFontSize: TextUnit = 10.sp
 
-    val MessageItemSpacing: Dp = 8.dp
-    val SenderTopPadding: Dp = 8.dp
-    val SenderToBodySpacing: Dp = 4.dp
+    /** Secondary line under a list row / meta cluster. Small and grey, never louder. */
+    val MetaFontSize: TextUnit = 12.sp
+    val MetaLineHeight: TextUnit = 15.sp
 
-    // MARK: - Bubble geometry (ChatUiMode.Bubbles)
+    // MARK: - Transcript rhythm
+    //
+    // Consecutive messages from one sender sit tight together so a run reads as a single
+    // group; a change of sender (or of day) opens a visible gap.
+
+    /** Gap between consecutive messages from the same sender — a run reads as one block. */
+    val MessageItemSpacing: Dp = 2.dp
+
+    /** Gap above the first message of a new run, so separate thoughts visibly separate. */
+    val NewGroupSpacing: Dp = 10.dp
+
+    val SenderTopPadding: Dp = 8.dp
+    val SenderToBodySpacing: Dp = 1.dp
+
+    // MARK: - Bubble geometry
 
     /** Rounded corner on the three "free" corners of a message bubble. */
-    val BubbleCornerRadius: Dp = 16.dp
+    val BubbleCornerRadius: Dp = 18.dp
 
-    /** Tightened corner on the speaker's own side, giving the bubble a subtle tail. */
-    val BubbleTailRadius: Dp = 4.dp
+    /** Tightened corner on the speaker's own side, giving the bubble its tail. */
+    val BubbleTailRadius: Dp = 5.dp
 
-    /** Padding inside a bubble, around the text. */
-    val BubblePaddingHorizontal: Dp = 12.dp
-    val BubblePaddingVertical: Dp = 8.dp
+    /** Padding inside a bubble, around the text. Deliberately snug. */
+    val BubblePaddingHorizontal: Dp = 10.dp
+    val BubblePaddingVertical: Dp = 6.dp
 
     /** A bubble never grows past this fraction of the list width, so long lines still wrap. */
-    const val BubbleMaxWidthFraction: Float = 0.80f
+    const val BubbleMaxWidthFraction: Float = 0.75f
 
-    /**
-     * Author-colour wash inside a bubble. Matches the mention-chip treatment so a tinted
-     * bubble stays legible on both the near-black and near-white chat surfaces.
-     */
-    const val BubbleBackgroundAlpha: Float = 0.18f
+    /** Breads are filled with a flat brand colour, not a tinted wash. */
+    const val BubbleBackgroundAlpha: Float = 1.0f
 
-    /** Author-colour hairline around a bubble; stronger than the fill so the shape reads. */
-    const val BubbleBorderAlpha: Float = 0.38f
+    /** iOS bubbles carry no outline; the fill alone defines the shape. */
+    const val BubbleBorderAlpha: Float = 0.0f
+
+    /** Air under a bubble, reserved for the centered cluster timestamp. */
+    val ClusterTimestampPadding: Dp = 6.dp
 
     const val SenderSuffixAlpha: Float = 0.60f
     const val HighlightAlpha: Float = 0.20f
     const val MutedTextAlpha: Float = 0.50f
+
+    // MARK: - Chrome metrics
+    //
+    // A compact, fixed-height bar with a single hairline underneath — no elevation, no
+    // shadow, no large title. These are shared by the nav bar and the composer so both
+    // read as the same surface.
+
+    /** The app's one separator weight: a true hairline, not a border. */
+    val Hairline: Dp = 0.5.dp
+
+    /** Height of the top navigation bar. */
+    val NavBarHeight: Dp = 44.dp
+
+    /** Height of the bottom composer. */
+    val ComposerHeight: Dp = 40.dp
+
+    /** Side gutter for list rows and the transcript. */
+    val ScreenGutter: Dp = 12.dp
+
+    /** The inset hairline at the left of a list divider. */
+    val ListDividerInset: Dp = 52.dp
+
+    /** Small leading glyph in a conversation row. */
+    val ListRowGlyphSize: Dp = 34.dp
+
+    /** Vertical padding inside a conversation row. */
+    val ListRowVerticalPadding: Dp = 7.dp
+
+    // MARK: - Composed styles
 
     val MessageBodyStyle = TextStyle(
         fontFamily = BitchatFontFamily,
@@ -72,6 +117,11 @@ internal object ChatVisualTokens {
         lineHeight = MessageBodyLineHeight,
     )
 
+    /**
+     * Sender name above a group. Small and semi-bold, in the tertiary grey rather than a
+     * per-peer hue — colour-coding a person's name is not something the reference does, and
+     * on a light bar it fights the row separators.
+     */
     val SenderStyle = TextStyle(
         fontFamily = BitchatFontFamily,
         fontWeight = FontWeight.SemiBold,
@@ -81,7 +131,7 @@ internal object ChatVisualTokens {
 
     val SystemActionStyle = TextStyle(
         fontFamily = BitchatFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Normal,
         fontSize = SystemActionFontSize,
         lineHeight = SystemActionLineHeight,
     )

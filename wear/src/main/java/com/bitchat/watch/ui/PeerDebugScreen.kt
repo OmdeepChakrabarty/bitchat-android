@@ -63,7 +63,7 @@ fun PeerDebugScreen() {
             if (peers.isEmpty()) {
                 item {
                     Text(
-                        text = "Scanning for bitchat devices…",
+                        text = "Scanning for BeaconMesh devices…",
                         style = MaterialTheme.typography.bodySmall,
                         color = palette.textTertiary,
                         textAlign = TextAlign.Center,

@@ -41,7 +41,7 @@ import com.bitchat.watch.ui.theme.LocalBitchatPalette
 @Composable
 fun NicknameSetupScreen(
     initialNickname: String,
-    title: String = "bitchat",
+    title: String = "BeaconMesh",
     subtitle: String = "Pick a nickname",
     confirmLabel: String = "Join the mesh",
     onConfirm: (String) -> Unit,

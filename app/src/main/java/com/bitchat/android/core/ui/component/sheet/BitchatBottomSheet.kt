@@ -57,7 +57,9 @@ fun BitchatBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         dragHandle = null,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        // Square top corners. A large corner radius on the sheet is one of the strongest signals
+        // of a modern rounded UI; this design separates surfaces with hairlines instead.
+        shape = RoundedCornerShape(0.dp),
         containerColor = MaterialTheme.colorScheme.background,
     ) {
         CompositionLocalProvider(LocalSheetDismiss provides animatedDismiss) {

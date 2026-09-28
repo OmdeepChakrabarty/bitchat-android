@@ -1,5 +1,6 @@
 package com.bitchat.android.ui
 
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -73,6 +74,7 @@ import com.bitchat.android.services.ContactIdentityResolver
 import com.bitchat.android.util.hexEncodedString
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import com.bitchat.android.ui.theme.ChatVisualTokens
 
 
 /**
@@ -145,6 +147,8 @@ fun MeshPeerListSheet(
     }
     val sheetScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val palette = LocalBitchatPalette.current
 
     // Bottom sheet state
     val sheetState = rememberModalBottomSheetState(
@@ -449,12 +453,32 @@ fun MeshPeerListSheet(
                     }
                 }
 
-                // TopBar (animated)
+                // Top bar. Titled "Messages" and led by a blue Edit action, the way a list of
+                // conversations is headed; the network detail stays below it as a section.
                 BitchatSheetTopBar(
                     title = {
-                        BitchatSheetTitle(text = stringResource(id = R.string.your_network))
+                        BitchatSheetTitle(
+                            text = stringResource(
+                                if (topBarAlpha > 0.5f) R.string.your_network else R.string.messages_title
+                            )
+                        )
                     },
                     backgroundAlpha = topBarAlpha,
+                    navigationIcon = {
+                        Text(
+                            text = stringResource(R.string.edit_action),
+                            fontFamily = BitchatFontFamily,
+                            fontSize = HeaderActionTextSize,
+                            color = palette.tint,
+                            modifier = Modifier
+                                .clip(HeaderClusterShape)
+                                .pressScaleClickable(
+                                    onClick = onShowVerification,
+                                    onClickLabel = stringResource(R.string.verify_title)
+                                )
+                                .padding(horizontal = 4.dp, vertical = 6.dp)
+                        )
+                    },
                     actions = {
                         if (selectedLocationChannel !is ChannelID.Location) {
                             IconButton(
@@ -1001,12 +1025,7 @@ private fun ConversationSwipeItem(
             favoriteRelationship?.theyFavoritedUs == true
     val isVerified = fingerprint != null && fingerprint in verifiedFingerprints
     val dismissState = rememberSwipeToDismissBoxState()
-    val shape = RoundedCornerShape(
-        topStart = if (isFirst) 14.dp else 0.dp,
-        topEnd = if (isFirst) 14.dp else 0.dp,
-        bottomStart = if (isLast) 14.dp else 0.dp,
-        bottomEnd = if (isLast) 14.dp else 0.dp
-    )
+    val palette = LocalBitchatPalette.current
 
     LaunchedEffect(dismissState.currentValue, conversation.conversationID) {
         when (dismissState.currentValue) {
@@ -1026,16 +1045,20 @@ private fun ConversationSwipeItem(
         }
     }
 
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = AboutHorizontalPadding)
-            .clip(shape),
-        color = colorScheme.surface,
-        shape = shape
-    ) {
+    // Rows are full-bleed and ruled, not cards: no margin, no corner radius, no surface
+    // elevation. A hairline inset from the leading edge separates them, so the list reads as one
+    // continuous sheet of rows.
+    Box(modifier = modifier.fillMaxWidth()) {
         Column {
-            if (!isFirst) SheetCardDivider()
+            if (!isFirst) {
+                HorizontalDivider(
+                    thickness = HairlineThickness,
+                    color = palette.separator,
+                    modifier = Modifier.padding(
+                        start = ChatVisualTokens.ListDividerInset
+                    )
+                )
+            }
             SwipeToDismissBox(
                 state = dismissState,
                 enableDismissFromStartToEnd = true,
@@ -1049,12 +1072,12 @@ private fun ConversationSwipeItem(
                             .fillMaxSize()
                             .background(
                                 if (startToEnd) {
-                                    colorScheme.secondaryContainer
+                                    palette.textTertiary.copy(alpha = 0.18f)
                                 } else {
-                                    colorScheme.errorContainer
+                                    palette.destructive
                                 }
                             )
-                            .padding(horizontal = SheetRowHorizontal),
+                            .padding(horizontal = ChatVisualTokens.ScreenGutter),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = if (startToEnd) {
                             Arrangement.Start
@@ -1062,16 +1085,6 @@ private fun ConversationSwipeItem(
                             Arrangement.End
                         }
                     ) {
-                        Icon(
-                            imageVector = if (startToEnd) {
-                                if (markRead) Icons.Outlined.MarkEmailRead
-                                else Icons.Outlined.MarkEmailUnread
-                            } else {
-                                Icons.Outlined.Delete
-                            },
-                            contentDescription = null
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = if (startToEnd) {
                                 stringResource(
@@ -1080,10 +1093,11 @@ private fun ConversationSwipeItem(
                             } else {
                                 stringResource(R.string.delete)
                             },
-                            style = MaterialTheme.typography.labelMedium.copy(
+                            style = MaterialTheme.typography.bodyMedium.copy(
                                 fontFamily = BitchatFontFamily,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                                fontWeight = FontWeight.Normal
+                            ),
+                            color = if (startToEnd) palette.textTertiary else Color.White
                         )
                     }
                 }
@@ -1238,14 +1252,34 @@ private fun ConversationRow(
             }
             .clickable(onClick = onClick)
             .padding(
-                horizontal = SheetRowHorizontal,
-                vertical = 10.dp
+                start = ChatVisualTokens.ScreenGutter,
+                end = ChatVisualTokens.ScreenGutter,
+                top = ChatVisualTokens.ListRowVerticalPadding,
+                bottom = ChatVisualTokens.ListRowVerticalPadding
             ),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Unread marker sits outside the avatar, at the very leading edge, so a glance down the
+        // left edge answers "who has something waiting" without reading a badge count.
+        Box(
+            modifier = Modifier.size(7.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (conversation.unreadCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .background(palette.unreadDot, CircleShape)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(7.dp))
+
         PeerAvatar(
             name = baseNameRaw,
             color = assignedColor,
+            size = ChatVisualTokens.ListRowGlyphSize,
             isFavorite = isFavorite,
             theyFavoritedUs = theyFavoritedUs,
             isVerified = isVerified,
@@ -1294,24 +1328,21 @@ private fun ConversationRow(
                     text = truncateNickname(baseNameRaw),
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontFamily = BitchatFontFamily,
-                        fontWeight = if (conversation.unreadCount > 0) {
-                            FontWeight.Bold
-                        } else {
-                            FontWeight.Medium
-                        }
+                        fontWeight = FontWeight.SemiBold
                     ),
-                    color = assignedColor,
+                    color = colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
                 if (suffix.isNotEmpty()) {
                     Text(
                         text = suffix,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = BitchatFontFamily,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Normal
                         ),
-                        color = assignedColor.copy(alpha = SUFFIX_ALPHA)
+                        color = palette.textTertiary
                     )
                 }
                 if (conversation.isPinned) {
@@ -1330,6 +1361,19 @@ private fun ConversationRow(
                         tint = palette.textTertiary
                     )
                 }
+                // Time shares the name's line, pinned to the trailing edge of the row. That
+                // leaves the second line carrying nothing but the preview.
+                Text(
+                    text = stringResource(
+                        R.string.conversation_preview_timestamp,
+                        relativeTime
+                    ),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = BitchatFontFamily
+                    ),
+                    color = palette.textTertiary,
+                    maxLines = 1
+                )
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1354,34 +1398,31 @@ private fun ConversationRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
-                Text(
-                    text = stringResource(
-                        R.string.conversation_preview_timestamp,
-                        relativeTime
-                    ),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = BitchatFontFamily
-                    ),
-                    color = palette.textTertiary,
-                    maxLines = 1
-                )
             }
         }
 
-        UnreadBadge(
-            count = conversation.unreadCount,
-            colorScheme = colorScheme,
-            modifier = Modifier.padding(start = 4.dp)
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // Trailing disclosure glyph. Small and grey: it signals that the row opens something,
+        // and nothing more.
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = palette.textTertiary
         )
+
+        Spacer(modifier = Modifier.width(2.dp))
 
         Box {
             IconButton(
                 onClick = { showActions = true },
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(30.dp)
             ) {
                 Icon(
                     Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.conversation_actions),
+                    modifier = Modifier.size(16.dp),
                     tint = palette.textTertiary
                 )
             }
@@ -1789,6 +1830,9 @@ fun PrivateChatSheet(
     }
 
     val palette = LocalBitchatPalette.current
+    // Unread elsewhere in the app, for the leading "< Messages (N)" affordance. Reading the
+    // count here rather than passing it in keeps the sheet self-contained.
+    val totalUnread by viewModel.totalUnreadCount.collectAsStateWithLifecycle()
     // Three-state star: grey outline (no relation), orange outline (they favorited us),
     // filled orange (we favorited them, mutual or not).
     val favoriteStarTint by animateColorAsState(
@@ -1892,83 +1936,76 @@ fun PrivateChatSheet(
                 // Header. Built from the same tokens as the main chat header rather than a
                 // TopAppBar, so moving between the timeline and a conversation does not shift the
                 // bar's height, insets or type.
-                Surface(
+                // The reference header: back to the list on the leading edge with the count of
+                // messages waiting elsewhere, the contact's name centred, and one blue text
+                // action on the trailing edge that opens the contact card.
+                val dismiss = LocalSheetDismiss.current
+                ConversationNavBar(
                     modifier = Modifier.align(Alignment.TopCenter),
-                    color = colorScheme.background
-                ) {
-                    ConversationHeader(
-                        leadingIconRes = conversationTransportIcon(
-                            isReachedOverInternet = isNostrPeer || isNostrReachableFavorite,
-                            isWifiAware = isWifiAware,
-                            isDirect = isDirect
-                        ),
-                        leadingIconTint = colorScheme.primary,
-                        leadingContentDescription = when {
-                            isNostrPeer || isNostrReachableFavorite ->
-                                stringResource(R.string.cd_nostr_reachable)
-                            else -> null
-                        },
-                        title = titleText
-                    ) {
-                        ConversationHeaderAction(
-                            onClick = { viewModel.toggleFavorite(peerID) },
-                            contentDescription = if (isFavorite) {
-                                stringResource(R.string.cd_remove_favorite)
-                            } else {
-                                stringResource(R.string.cd_add_favorite)
-                            }
-                        ) {
-                            Icon(
-                                painter = painterResource(
-                                    if (isFavorite) {
-                                        R.drawable.ic_spec_star_filled
-                                    } else {
-                                        R.drawable.ic_spec_star
-                                    }
-                                ),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(HeaderIconSize)
-                                    .graphicsLayer {
-                                        rotationZ = starWobbleRotation.value
-                                        scaleX = starWobbleScale.value
-                                        scaleY = starWobbleScale.value
-                                    },
-                                tint = favoriteStarTint
-                            )
-                        }
-
-                        if (isVerified) {
-                            ConversationHeaderStatus {
-                                Icon(
-                                    imageVector = Icons.Filled.Verified,
-                                    contentDescription = stringResource(
-                                        R.string.fingerprint_verified_label
-                                    ),
-                                    modifier = Modifier.size(HeaderIconSize),
-                                    tint = colorScheme.primary
+                    title = titleText,
+                    backLabel = if (totalUnread > 0) {
+                        stringResource(R.string.messages_with_unread, totalUnread)
+                    } else {
+                        stringResource(R.string.messages_title)
+                    },
+                    onBackClick = { dismiss?.invoke() ?: onDismiss() },
+                    trailingAction = {
+                        Text(
+                            text = stringResource(R.string.conversation_details_action),
+                            fontFamily = BitchatFontFamily,
+                            fontSize = HeaderActionTextSize,
+                            color = palette.tint,
+                            modifier = Modifier
+                                .clip(HeaderClusterShape)
+                                .pressScaleClickable(
+                                    onClick = { viewModel.showSecurityVerificationSheet() },
+                                    onClickLabel = stringResource(R.string.verify_title)
                                 )
-                            }
-                        }
+                                .padding(horizontal = 4.dp, vertical = 6.dp)
+                        )
+                    }
+                )
 
-                        // Keep the lock nearest the close action: from right to left the security
-                        // cluster reads close, encryption, verification, then favorite.
-                        if (!isNostrPeer && !isNostrReachableFavorite) {
-                            ConversationHeaderAction(
-                                onClick = { viewModel.showSecurityVerificationSheet() },
-                                contentDescription = stringResource(R.string.verify_title)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    NoiseSessionIcon(
-                                        sessionState = sessionState,
-                                        modifier = Modifier.size(HeaderIconSize)
-                                    )
-                                }
-                            }
-                        }
-
-                        val dismiss = LocalSheetDismiss.current
-                        CloseButton(onClick = { dismiss?.invoke() ?: onDismiss() })
+                // Security state as a quiet badge over the leading back link, so the encryption
+                // and verification signals stay visible without displacing the title.
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .height(ChatHeaderHeight)
+                        .padding(start = HeaderInsetStart, end = HeaderInsetStart),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    if (!isNostrPeer && !isNostrReachableFavorite) {
+                        NoiseSessionIcon(
+                            sessionState = sessionState,
+                            modifier = Modifier.size(11.dp)
+                        )
+                    }
+                    if (isVerified) {
+                        Icon(
+                            imageVector = Icons.Filled.Verified,
+                            contentDescription = stringResource(
+                                R.string.fingerprint_verified_label
+                            ),
+                            modifier = Modifier.size(11.dp),
+                            tint = colorScheme.primary
+                        )
+                    }
+                    if (isFavorite || theyFavoritedUs) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_spec_star_filled),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(11.dp)
+                                .graphicsLayer {
+                                    rotationZ = starWobbleRotation.value
+                                    scaleX = starWobbleScale.value
+                                    scaleY = starWobbleScale.value
+                                },
+                            tint = favoriteStarTint
+                        )
                     }
                 }
             }

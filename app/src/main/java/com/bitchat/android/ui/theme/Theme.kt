@@ -17,51 +17,56 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 
-// Standard UI semantics live in Material so stock components and custom Bitchat composables
-// share one source of truth. LocalBitchatPalette below only supplies app-specific extra colors.
+// Standard UI semantics live in Material so stock components and custom composables share one
+// source of truth. LocalBitchatPalette below only supplies app-specific extra colors.
+//
+// The scheme is deliberately flat and neutral: a white/near-black background, a single blue
+// tint, and greys everywhere else. Chrome in this design is drawn with hairlines and fills
+// rather than elevation, so surface tints stay close to the background and any surface tint
+// that would read as "a card" is kept out of the chat surfaces entirely.
 internal val DarkBitchatColorScheme = darkColorScheme(
-    primary = Color(0xFF32D74B),
-    onPrimary = Color.Black,
-    primaryContainer = Color(0xFF163D1D),
-    onPrimaryContainer = Color(0xFFB8F5C1),
+    primary = Color(0xFF0A84FF),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF0A2A4A),
+    onPrimaryContainer = Color(0xFFCCE4FF),
     secondary = Color(0xFF0A84FF),
-    onSecondary = Color.Black,
-    secondaryContainer = Color(0xFF082E54),
-    onSecondaryContainer = Color(0xFFC2E0FF),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFF1C1C1E),
+    onSecondaryContainer = Color(0xFFFFFFFF),
     tertiary = DarkBitchatPalette.accentOrange,
     onTertiary = Color.Black,
     background = Color(0xFF000000),
-    onBackground = Color(0xFFF5F5F5),
-    surface = Color(0xFF0E150E),
-    onSurface = Color(0xFFF5F5F5),
-    surfaceVariant = Color(0xFF182118),
-    onSurfaceVariant = Color(0xFF9AA69A),
-    outline = Color(0xFF2A3A2A),
-    outlineVariant = Color(0xFF1C271C),
-    error = Color(0xFFFF453A),
-    onError = Color.Black
+    onBackground = Color(0xFFFFFFFF),
+    surface = Color(0xFF1C1C1E),
+    onSurface = Color(0xFFFFFFFF),
+    surfaceVariant = Color(0xFF2C2C2E),
+    onSurfaceVariant = Color(0xFF98989D),
+    outline = Color(0xFF3A3A3C),
+    outlineVariant = Color(0xFF38383A),
+    error = Color(0xFFFF3B30),
+    onError = Color.White
 )
 
 internal val LightBitchatColorScheme = lightColorScheme(
-    primary = Color(0xFF248A3D),
+    primary = Color(0xFF007AFF),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFD5F1D8),
-    onPrimaryContainer = Color(0xFF0A3212),
+    primaryContainer = Color(0xFFD6E9FF),
+    onPrimaryContainer = Color(0xFF002C5C),
     secondary = Color(0xFF007AFF),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFD6E9FF),
-    onSecondaryContainer = Color(0xFF002C5C),
+    secondaryContainer = Color(0xFFE5E5EA),
+    onSecondaryContainer = Color(0xFF000000),
     tertiary = LightBitchatPalette.accentOrange,
     onTertiary = Color.Black,
     background = Color(0xFFFFFFFF),
-    onBackground = Color(0xFF131A13),
-    surface = Color(0xFFF2F6F2),
-    onSurface = Color(0xFF131A13),
-    surfaceVariant = Color(0xFFE7EDE7),
-    onSurfaceVariant = Color(0xFF4C574C),
-    outline = Color(0xFFCBD6CB),
-    outlineVariant = Color(0xFFDEE6DE),
-    error = Color(0xFFD70015),
+    onBackground = Color(0xFF000000),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF000000),
+    surfaceVariant = Color(0xFFF2F2F7),
+    onSurfaceVariant = Color(0xFF6C6C70),
+    outline = Color(0xFFC8C7CC),
+    outlineVariant = Color(0xFFE5E5EA),
+    error = Color(0xFFFF3B30),
     onError = Color.White
 )
 

@@ -16,9 +16,15 @@ import com.bitchat.android.ui.theme.ChatVisualTokens
 object MessageGrouping {
 
     /** Space above the first message of a group (i.e. one that renders its sender label). */
-    val NEW_GROUP_SPACING: Dp = ChatVisualTokens.MessageItemSpacing
+    val NEW_GROUP_SPACING: Dp = ChatVisualTokens.NewGroupSpacing
 
-    /** Space above a continuation message inside an existing group. */
+    /**
+     * Space above a continuation message inside an existing group.
+     *
+     * Much tighter than [NEW_GROUP_SPACING]: consecutive messages from one sender should read as
+     * a single block, with only a hairline between them. A uniform gap made every reply look
+     * like a separate thought.
+     */
     val GROUPED_SPACING: Dp = ChatVisualTokens.MessageItemSpacing
 
     /** Gap between the sender label and the first line of the body. */

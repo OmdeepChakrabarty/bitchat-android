@@ -90,12 +90,8 @@ private fun BluetoothDisabledContent(
             textAlign = TextAlign.Center
         )
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -171,12 +167,7 @@ private fun BluetoothNotSupportedContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Error icon
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFFFEBEE)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
+        Box {
             Text(
                 text = stringResource(R.string.warning_emoji),
                 style = MaterialTheme.typography.headlineLarge,
@@ -194,12 +185,8 @@ private fun BluetoothNotSupportedContent(
             textAlign = TextAlign.Center
         )
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = colorScheme.errorContainer.copy(alpha = 0.1f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
             Text(
                 text = stringResource(R.string.bluetooth_unsupported_explanation),

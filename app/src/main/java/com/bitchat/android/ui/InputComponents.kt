@@ -85,6 +85,7 @@ import com.bitchat.android.features.voice.AudioWaveformExtractor
 import com.bitchat.android.ui.media.RealtimeScrollingWaveform
 import com.bitchat.android.ui.media.ImagePickerButton
 import com.bitchat.android.ui.media.FilePickerButton
+import com.bitchat.android.ui.theme.ChatVisualTokens
 
 /**
  * Input components for ChatScreen
@@ -205,30 +206,31 @@ class CombinedVisualTransformation(private val transformations: List<VisualTrans
 
 
 /**
- * Minimum height of the composer pill.
+ * Minimum height of the composer field.
  *
- * Roomy on purpose. The composer is a primary target that gets hit constantly, and the previous
- * 44.dp felt cramped once the action buttons moved inside it.
+ * Compact. The bar is a fixed strip along the bottom of the conversation, not a floating
+ * composer: a tall field stole too much of the transcript and made the layout read as a
+ * modern messaging app rather than a flat list of messages.
  */
-private val ComposerMinHeight = 52.dp
+private val ComposerMinHeight = 34.dp
 
 /**
- * Composer corner radius.
+ * Corner radius of the composer field.
  *
- * Half of [ComposerMinHeight], so a single-line composer is a true capsule. Fixed rather than
- * percentage-based so that when the field grows to several lines it stays a generously rounded
- * rectangle instead of degenerating into a stadium.
+ * A small fixed radius, not a capsule. Half-of-height would make every field a stadium, which
+ * is the dominant visual tell of a modern rounded UI; a modest radius keeps the field reading
+ * as an inset input on a flat bar.
  */
-private val ComposerShape = RoundedCornerShape(ComposerMinHeight / 2)
+private val ComposerShape = RoundedCornerShape(6.dp)
 
-/** Tap target for every button inside the pill. */
-private val ComposerButtonSize = 40.dp
+/** Tap target for every button inside the bar. */
+private val ComposerButtonSize = 34.dp
 
 /** Diameter of the visible disc inside that tap target. */
-private val ComposerButtonDisc = 36.dp
+private val ComposerButtonDisc = 30.dp
 
 /** Icon size shared by the composer's glyphs. */
-internal val ComposerIconSize = 20.dp
+internal val ComposerIconSize = 18.dp
 
 /**
  * Opacity of the composer pill.
@@ -266,9 +268,10 @@ internal fun ComposerActionSurface(
     val accent = if (activeColor == Color.Unspecified) colorScheme.primary else activeColor
 
     val container by animateColorAsState(
-        // A tint rather than a fill. A solid accent disc next to the text you are typing was the
-        // loudest thing on the screen; at 20% it still reads as "armed" without competing.
-        targetValue = if (isActive) accent.copy(alpha = 0.20f) else palette.inputButton,
+        // No resting disc. A filled circle behind every composer glyph is the other half of the
+        // "modern rounded composer" look; here the glyph carries the affordance on its own and
+        // only takes a tinted background while it is genuinely armed.
+        targetValue = if (isActive) accent.copy(alpha = 0.20f) else Color.Transparent,
         animationSpec = tween(BitchatMotion.STANDARD_MS, easing = FastOutSlowInEasing),
         label = "composerButtonContainer"
     )
@@ -402,7 +405,7 @@ fun MessageInput(
     )
 
     Row(
-        modifier = modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier = modifier.padding(horizontal = ChatVisualTokens.ScreenGutter, vertical = 5.dp),
         verticalAlignment = Alignment.Bottom
     ) {
         // MARK: - The pill. Field and action buttons are one visual object.
@@ -422,7 +425,7 @@ fun MessageInput(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 18.dp, end = 4.dp, top = 15.dp, bottom = 15.dp)
+                    .padding(start = 8.dp, end = 4.dp, top = 7.dp, bottom = 7.dp)
             ) {
                 // Always keep the text field mounted to retain focus and avoid IME collapse
                 BasicTextField(
@@ -771,8 +774,11 @@ private fun RecordingCancelButton(
 }
 
 /**
- * Send affordance. Only rendered when there is something to send, so its mere presence is the
- * signal; it does not need to shout in the terminal's full-brightness green as well.
+ * Send affordance.
+ *
+ * A text label rather than a button: grey while there is nothing to send, tint blue the moment
+ * there is. Always visible, so the bar does not shift as the field fills — the reference
+ * composer keeps its place and just changes the colour of the word.
  */
 @Composable
 private fun SendButton(
@@ -782,26 +788,42 @@ private fun SendButton(
     enabled: Boolean = true
 ) {
     val palette = LocalBitchatPalette.current
-    val colorScheme = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    ComposerActionSurface(
-        isActive = enabled,
-        isPressed = isPressed,
-        // Private chats and channels keep their orange identity, disc and glyph together.
-        activeColor = if (isAccented) palette.accentOrange else colorScheme.primary,
-        modifier = modifier.clickable(
-            interactionSource = interactionSource,
-            indication = null,
-            enabled = enabled
-        ) { onSend() }
-    ) { tint ->
-        Icon(
-            imageVector = Icons.Filled.ArrowUpward,
-            contentDescription = stringResource(id = R.string.send_message),
-            modifier = Modifier.size(ComposerIconSize),
-            tint = tint
+    val labelColor by animateColorAsState(
+        targetValue = when {
+            !enabled -> palette.textTertiary
+            isAccented -> palette.tint
+            else -> palette.textTertiary
+        },
+        animationSpec = tween(BitchatMotion.QUICK_MS),
+        label = "sendLabelColor"
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (isPressed) 0.4f else 1f,
+        animationSpec = tween(BitchatMotion.QUICK_MS),
+        label = "sendLabelAlpha"
+    )
+
+    Box(
+        modifier = modifier
+            .height(ComposerButtonSize)
+            .clip(RoundedCornerShape(4.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled
+            ) { onSend() }
+            .padding(horizontal = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = stringResource(R.string.send_label),
+            fontSize = 15.sp,
+            fontFamily = BitchatFontFamily,
+            color = labelColor.copy(alpha = labelColor.alpha * alpha),
+            maxLines = 1
         )
     }
 }

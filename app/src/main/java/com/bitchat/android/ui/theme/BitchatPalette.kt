@@ -32,6 +32,33 @@ data class BitchatPalette(
     /** Resting disc behind the composer's action glyphs. Neutral grey. */
     val inputButton: Color,
 
+    // MARK: - Message bubbles
+    /** Fill for your own outgoing bubbles. */
+    val bubbleOutgoing: Color,
+    /** Body text inside an outgoing bubble. */
+    val bubbleOutgoingText: Color,
+    /** Fill for incoming bubbles. */
+    val bubbleIncoming: Color,
+    /** Body text inside an incoming bubble. */
+    val bubbleIncomingText: Color,
+
+    // MARK: - Chrome
+    /**
+     * The single hairline that separates a bar from its content, and list rows from each
+     * other. One token, so every divider in the app is the same weight and colour.
+     */
+    val separator: Color,
+    /** Background behind the nav bar and the composer. */
+    val barBackground: Color,
+    /** Fill for the composer's rounded text field. */
+    val composerField: Color,
+    /** Tappable blue: nav-bar actions, links, the Send button when armed. */
+    val tint: Color,
+    /** The unread dot on a conversation row. */
+    val unreadDot: Color,
+    /** Full-bleed red behind a swiped-away list row. */
+    val destructive: Color,
+
     // MARK: - Extra semantics
     /** Timestamps, placeholders, section labels, disabled states. */
     val textTertiary: Color,
@@ -49,24 +76,44 @@ data class BitchatPalette(
 )
 
 val DarkBitchatPalette = BitchatPalette(
-    inputOutline = Color(0xFF333635),
-    inputOutlineFocused = Color(0xFF5A605D),
-    inputSurface = Color(0xFF0B0B0B),
-    inputSurfaceFocused = Color(0xFF151515),
-    inputButton = Color(0xFF1E1E1E),
-    textTertiary = Color(0xFF6B776B),
+    inputOutline = Color(0xFF3A3A3C),
+    inputOutlineFocused = Color(0xFF48484A),
+    inputSurface = Color(0xFF1C1C1E),
+    inputSurfaceFocused = Color(0xFF2C2C2E),
+    inputButton = Color(0xFF2C2C2E),
+    bubbleOutgoing = Color(0xFF0A84FF),
+    bubbleOutgoingText = Color(0xFFFFFFFF),
+    bubbleIncoming = Color(0xFF26262A),
+    bubbleIncomingText = Color(0xFFFFFFFF),
+    separator = Color(0xFF38383A),
+    barBackground = Color(0xFF1C1C1E),
+    composerField = Color(0xFF2C2C2E),
+    tint = Color(0xFF0A84FF),
+    unreadDot = Color(0xFF0A84FF),
+    destructive = Color(0xFFFF3B30),
+    textTertiary = Color(0xFF98989D),
     accentOrange = Color(0xFFFF9F0A),
     accentPurple = Color(0xFFBF5AF2),
     peerColors = PeerColorStyle.Dark,
 )
 
 val LightBitchatPalette = BitchatPalette(
-    inputOutline = Color(0xFFCFD3D1),
-    inputOutlineFocused = Color(0xFF8E9490),
-    inputSurface = Color(0xFFFAFAFA),
+    inputOutline = Color(0xFFBFBFBF),
+    inputOutlineFocused = Color(0xFF9A9A9A),
+    inputSurface = Color(0xFFFFFFFF),
     inputSurfaceFocused = Color(0xFFF2F2F2),
-    inputButton = Color(0xFFE8E8E8),
-    textTertiary = Color(0xFF757F75),
+    inputButton = Color(0xFFEDEDED),
+    bubbleOutgoing = Color(0xFF1B8AFB),
+    bubbleOutgoingText = Color(0xFFFFFFFF),
+    bubbleIncoming = Color(0xFFE5E5EA),
+    bubbleIncomingText = Color(0xFF000000),
+    separator = Color(0xFFC8C7CC),
+    barBackground = Color(0xFFF9F9F9),
+    composerField = Color(0xFFFFFFFF),
+    tint = Color(0xFF007AFF),
+    unreadDot = Color(0xFF007AFF),
+    destructive = Color(0xFFFF3B30),
+    textTertiary = Color(0xFF8E8E93),
     accentOrange = Color(0xFFFF9500),
     accentPurple = Color(0xFFAF52DE),
     peerColors = PeerColorStyle.Light,

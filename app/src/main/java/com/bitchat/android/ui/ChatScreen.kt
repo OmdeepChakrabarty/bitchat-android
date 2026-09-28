@@ -47,6 +47,8 @@ import com.bitchat.android.nostr.LocationNotesManager
 import com.bitchat.android.nostr.NearbyNotesController
 import com.bitchat.android.ui.media.FullScreenImageViewer
 import com.bitchat.android.ui.theme.BitchatMotion
+import com.bitchat.android.ui.theme.LocalBitchatPalette
+import com.bitchat.android.ui.theme.ChatVisualTokens
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
@@ -651,17 +653,18 @@ fun ChatInputSection(
     val activePublicTalker by remember(context) {
         com.bitchat.android.features.voice.LiveVoiceManager.getInstance(context).activePublicTalker
     }.collectAsState()
+    val palette = LocalBitchatPalette.current
     Column(
-        // Flat, slightly translucent screen background — the same treatment as the top bar, so the
-        // two bars are visibly the same kind of surface. No gradient: a soft ramp here just looked
-        // like a smudge above a crisp hairline. The rule is inside the background so the whole bar
-        // is one surface with a top border, rather than a line floating over the conversation.
+        // Flat bar, opaque, with a single hairline on top. Opaque rather than translucent: the
+        // reference composer is a solid strip, and letting the conversation ghost through it
+        // reads as a frosted-glass panel — a modern treatment this design deliberately avoids.
         modifier = modifier
             .fillMaxWidth()
-            .background(colorScheme.background.copy(alpha = BarBackgroundAlpha))
+            .background(palette.barBackground)
     ) {
-        // Hairline marking where chrome begins. Faint on purpose — it is a hint, not a border.
-        HorizontalDivider(thickness = 1.dp, color = colorScheme.outlineVariant)
+        // The one hairline in the bar. Shared with the nav bar so both edges of the conversation
+        // are the same weight of the same colour.
+        HorizontalDivider(thickness = HairlineThickness, color = palette.separator)
 
         // Command suggestions box
         if (showCommandSuggestions && commandSuggestions.isNotEmpty()) {
@@ -743,6 +746,14 @@ fun ChatInputSection(
 private const val BarBackgroundAlpha = 0.88f
 
 /**
+ * The app's single separator weight.
+ *
+ * One hairline, used by the nav bar, the composer, and every list divider, so the whole surface
+ * reads as one ruled sheet rather than a collection of independently bordered regions.
+ */
+internal val HairlineThickness = ChatVisualTokens.Hairline
+
+/**
  * Fraction of the header that stays fully opaque, measured from the top.
  *
  * The header is the one place a gradient earns its keep: the status bar is transparent, so the
@@ -765,22 +776,16 @@ private fun ChatFloatingHeader(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val locationManager = remember { com.bitchat.android.geohash.LocationChannelManager.getInstance(context) }
+    val palette = LocalBitchatPalette.current
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .zIndex(1f)
-            // Fully opaque where it meets the system status bar, fading to translucent at its
-            // lower edge. The status bar itself is transparent, so anything less than opaque at
-            // the top would let the wallpaper or a light system-bar scrim bleed through and the
-            // header would stop reading as part of the app.
-            .background(
-                Brush.verticalGradient(
-                    0f to colorScheme.background,
-                    HeaderOpaqueStop to colorScheme.background,
-                    1f to colorScheme.background.copy(alpha = BarBackgroundAlpha)
-                )
-            )
+            // Flat, opaque, with a hairline under it. No gradient and no translucency: a fade
+            // here read as a modern frosted header, and this design gets its separation from the
+            // rule alone.
+            .background(palette.barBackground)
             .windowInsetsPadding(WindowInsets.statusBars) // Extend into status bar area
     ) {
         // No TopAppBar: it silently injects a 4.dp horizontal pad plus a 12.dp title inset and
@@ -808,6 +813,7 @@ private fun ChatFloatingHeader(
                 onLocationNotesClick()
             }
         )
+        HorizontalDivider(thickness = HairlineThickness, color = palette.separator)
     }
 }
 

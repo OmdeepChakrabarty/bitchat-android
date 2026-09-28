@@ -143,12 +143,12 @@ class ChatUIUtilsTest {
 
     @Test
     fun `chat text styles match the exported type scale`() {
-        assertEquals(14.sp, MessageBodyTextStyle.fontSize)
-        assertEquals(20.sp, MessageBodyTextStyle.lineHeight)
+        assertEquals(15.sp, MessageBodyTextStyle.fontSize)
+        assertEquals(19.sp, MessageBodyTextStyle.lineHeight)
         assertEquals(FontWeight.Normal, MessageBodyTextStyle.fontWeight)
         assertEquals(BitchatFontFamily, MessageBodyTextStyle.fontFamily)
-        assertEquals(14.sp, MessageSenderTextStyle.fontSize)
-        assertEquals(16.sp, MessageSenderTextStyle.lineHeight)
+        assertEquals(12.sp, MessageSenderTextStyle.fontSize)
+        assertEquals(14.sp, MessageSenderTextStyle.lineHeight)
         assertEquals(FontWeight.SemiBold, MessageSenderTextStyle.fontWeight)
     }
 
@@ -390,9 +390,9 @@ class ChatUIUtilsTest {
         val suffixSpan = sender.spanStyles.first { sender.text.substring(it.start, it.end) == "#04af" }
         val nameSpan = sender.spanStyles.first { sender.text.substring(it.start, it.end) == "@carol" }
         assertNotNull(suffixSpan.item.color)
-        assertEquals(14.sp, nameSpan.item.fontSize)
+        assertEquals(12.sp, nameSpan.item.fontSize)
         assertEquals(FontWeight.SemiBold, nameSpan.item.fontWeight)
-        assertEquals(14.sp, suffixSpan.item.fontSize)
+        assertEquals(12.sp, suffixSpan.item.fontSize)
         assertEquals(FontWeight.Normal, suffixSpan.item.fontWeight)
         assertEquals(ChatVisualTokens.SenderSuffixAlpha, suffixSpan.item.color.alpha)
         assertTrue(
@@ -489,7 +489,9 @@ class ChatUIUtilsTest {
 
     @Test
     fun `material owns standard text while Bitchat palette owns peer chroma`() {
-        assertEquals(Color(0xFFF5F5F5), DarkBitchatColorScheme.onSurface)
+        // The dark surface is a true near-black on white-on-dark, not a tinted off-white.
+        assertEquals(Color(0xFFFFFFFF), DarkBitchatColorScheme.onSurface)
+        assertEquals(Color(0xFF000000), LightBitchatColorScheme.onSurface)
         assertTrue(LightBitchatColorScheme.onSurface != DarkBitchatColorScheme.onSurface)
         assertTrue(
             LightBitchatPalette.peerColors != DarkBitchatPalette.peerColors

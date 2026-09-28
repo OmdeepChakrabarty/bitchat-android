@@ -511,7 +511,7 @@ fun PermissionRequestScreen(onGranted: () -> Unit) {
     WearFormScreen {
         item {
             Text(
-                text = "bitchat",
+                text = "BeaconMesh",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,

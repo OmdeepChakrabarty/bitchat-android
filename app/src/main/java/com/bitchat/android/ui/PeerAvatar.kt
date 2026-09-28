@@ -18,9 +18,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.bitchat.android.R
 import com.bitchat.android.ui.theme.BitchatFontFamily
 import com.bitchat.android.ui.theme.LocalBitchatPalette
+import androidx.compose.ui.unit.Dp
 
 internal val PeerAvatarBadgeSize = 18.dp
 private val PeerAvatarStarSize = 16.dp
@@ -31,6 +33,7 @@ internal fun PeerAvatar(
     name: String,
     color: Color,
     modifier: Modifier = Modifier,
+    size: Dp = 42.dp,
     isFavorite: Boolean = false,
     theyFavoritedUs: Boolean = false,
     isVerified: Boolean = false,
@@ -39,13 +42,19 @@ internal fun PeerAvatar(
     val palette = LocalBitchatPalette.current
     val colorScheme = MaterialTheme.colorScheme
 
+    // Badges and the initial scale with the disc, so the same composable serves the oversized
+    // sheet avatar and the small one that sits beside a sender name in the transcript.
+    val badgeSize = size * (PeerAvatarBadgeSize.value / 42f)
+    val starSize = size * (PeerAvatarStarSize.value / 42f)
+    val verifiedSize = size * (PeerAvatarVerifiedSize.value / 42f)
+
     Box(
-        modifier = modifier.size(42.dp),
+        modifier = modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
+                .size(size * 0.9f)
                 .background(color.copy(alpha = 0.16f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
@@ -53,7 +62,8 @@ internal fun PeerAvatar(
                 text = name.trim().firstOrNull()?.uppercase() ?: "#",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontFamily = BitchatFontFamily,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = (size.value * 0.42f).sp
                 ),
                 color = color
             )
@@ -62,11 +72,10 @@ internal fun PeerAvatar(
         if (badge != null) {
             Surface(
                 modifier = Modifier
-                    .size(PeerAvatarBadgeSize)
+                    .size(badgeSize)
                     .align(Alignment.BottomEnd),
                 shape = CircleShape,
-                color = colorScheme.surface,
-                tonalElevation = 1.dp
+                color = colorScheme.surface
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     badge()
@@ -77,11 +86,10 @@ internal fun PeerAvatar(
         if (isFavorite || theyFavoritedUs) {
             Surface(
                 modifier = Modifier
-                    .size(PeerAvatarStarSize)
+                    .size(starSize)
                     .align(Alignment.TopEnd),
                 shape = CircleShape,
-                color = colorScheme.surface,
-                tonalElevation = 1.dp
+                color = colorScheme.surface
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -99,7 +107,7 @@ internal fun PeerAvatar(
                                 R.string.cd_favorited_you
                             }
                         ),
-                        modifier = Modifier.size(10.dp),
+                        modifier = Modifier.size(starSize * 0.62f),
                         tint = palette.accentOrange
                     )
                 }
@@ -109,11 +117,10 @@ internal fun PeerAvatar(
         if (isVerified) {
             Surface(
                 modifier = Modifier
-                    .size(PeerAvatarVerifiedSize)
+                    .size(verifiedSize)
                     .align(Alignment.TopStart),
                 shape = CircleShape,
-                color = colorScheme.surface,
-                tonalElevation = 1.dp
+                color = colorScheme.surface
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -121,7 +128,7 @@ internal fun PeerAvatar(
                         contentDescription = stringResource(
                             R.string.fingerprint_verified_label
                         ),
-                        modifier = Modifier.size(12.dp),
+                        modifier = Modifier.size(verifiedSize * 0.75f),
                         tint = colorScheme.primary
                     )
                 }

@@ -9,76 +9,88 @@ import androidx.compose.ui.unit.sp
 internal const val BASE_FONT_SIZE = com.bitchat.android.util.AppConstants.UI.BASE_FONT_SIZE_SP
 
 /**
- * Message body style. The generous leading (1.4x) is what gives the redesigned chat surface
- * its readable rhythm; without an explicit lineHeight, Compose falls back to the font's own
- * metrics and lines sit too tightly for long paragraphs.
+ * Message body style. The explicit line height gives the transcript its rhythm; without one,
+ * Compose falls back to the font's own metrics and lines sit too tightly for long paragraphs.
  */
 val MessageBodyTextStyle = ChatVisualTokens.MessageBodyStyle
 
-/** Sender label above a message group. Single line, never wraps. */
-val MessageSenderTextStyle = ChatVisualTokens.SenderStyle
+/** Sender name above the first bubble of a run. */
+val MessageSenderTextStyle = ChatVisualTokens.SenderStyle.copy(
+    color = androidx.compose.ui.graphics.Color.Unspecified,
+)
 
-// Typography matching the iOS monospace design - using BASE_FONT_SIZE for consistency
+/**
+ * The type scale, set explicitly rather than derived from a base size.
+ *
+ * This design is about small type and tight leading: nav titles, list rows and body copy all sit
+ * in a narrow band, so the Material defaults (which assume 24sp display text) would blow the
+ * compact bars out of proportion.
+ */
 val Typography = Typography(
     bodyLarge = TextStyle(
         fontFamily = BitchatFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = (BASE_FONT_SIZE + 1).sp,
-        lineHeight = (BASE_FONT_SIZE + 7).sp
+        fontSize = 15.sp,
+        lineHeight = 20.sp
     ),
     bodyMedium = TextStyle(
         fontFamily = BitchatFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = BASE_FONT_SIZE.sp,
-        lineHeight = (BASE_FONT_SIZE + 6).sp
+        fontSize = 14.sp,
+        lineHeight = 19.sp
     ),
     bodySmall = TextStyle(
         fontFamily = BitchatFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = (BASE_FONT_SIZE - 3).sp,
-        lineHeight = (BASE_FONT_SIZE + 1).sp
+        fontSize = 12.sp,
+        lineHeight = 16.sp
     ),
     headlineSmall = TextStyle(
         fontFamily = BitchatFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = (BASE_FONT_SIZE + 3).sp,
-        lineHeight = (BASE_FONT_SIZE + 9).sp
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 17.sp,
+        lineHeight = 22.sp
     ),
-    // Previously unset, which leaked the Roboto default into onboarding + sheet titles.
     headlineLarge = TextStyle(
         fontFamily = BitchatFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = (BASE_FONT_SIZE + 13).sp,
-        lineHeight = (BASE_FONT_SIZE + 21).sp
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 17.sp,
+        lineHeight = 22.sp
     ),
     titleLarge = TextStyle(
         fontFamily = BitchatFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = (BASE_FONT_SIZE + 5).sp,
-        lineHeight = (BASE_FONT_SIZE + 13).sp
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp,
+        lineHeight = 20.sp
     ),
     titleMedium = TextStyle(
         fontFamily = BitchatFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = (BASE_FONT_SIZE + 1).sp,
-        lineHeight = (BASE_FONT_SIZE + 7).sp
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 15.sp,
+        lineHeight = 19.sp
+    ),
+    titleSmall = TextStyle(
+        fontFamily = BitchatFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 17.sp
     ),
     labelLarge = TextStyle(
         fontFamily = BitchatFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = (BASE_FONT_SIZE - 1).sp,
-        lineHeight = (BASE_FONT_SIZE + 5).sp
+        fontWeight = FontWeight.Normal,
+        fontSize = 15.sp,
+        lineHeight = 19.sp
     ),
     labelMedium = TextStyle(
         fontFamily = BitchatFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = (BASE_FONT_SIZE - 2).sp,
-        lineHeight = (BASE_FONT_SIZE + 3).sp
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 15.sp
     ),
     labelSmall = TextStyle(
         fontFamily = BitchatFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = (BASE_FONT_SIZE - 4).sp,
-        lineHeight = (BASE_FONT_SIZE + 1).sp
+        fontSize = 10.sp,
+        lineHeight = 13.sp
     )
 )
