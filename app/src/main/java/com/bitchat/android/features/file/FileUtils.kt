@@ -236,8 +236,10 @@ object FileUtils {
         return try {
             val out = java.io.File(dir, safeName)
             out.outputStream().use { it.write(file.content) }
+            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-4a] saveIncomingFile wrote ${file.content.size} bytes → ${out.absolutePath}") // TEMP DIAGNOSTIC
             out.absolutePath
-        } catch (_: Exception) {
+        } catch (primaryError: Exception) {
+            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-4z] saveIncomingFile EXCEPTION (primary): ${primaryError::class.java.simpleName}: ${primaryError.message}") // TEMP DIAGNOSTIC
             // Fallback to cache dir with uniqueness
             try {
                 var fallback = safeName
@@ -255,10 +257,13 @@ object FileUtils {
                 }
                 val out = java.io.File(context.cacheDir, fallback)
                 out.outputStream().use { it.write(file.content) }
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-4b] saveIncomingFile wrote ${file.content.size} bytes (fallback) → ${out.absolutePath}") // TEMP DIAGNOSTIC
                 out.absolutePath
-            } catch (_: Exception) {
+            } catch (fallbackError: Exception) {
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-4z] saveIncomingFile EXCEPTION (fallback): ${fallbackError::class.java.simpleName}: ${fallbackError.message}") // TEMP DIAGNOSTIC
                 val tmp = java.io.File.createTempFile(if (isImage) "img_" else "file_", if (isImage) ".jpg" else ".bin")
                 tmp.writeBytes(file.content)
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-4c] saveIncomingFile wrote ${file.content.size} bytes (temp) → ${tmp.absolutePath}") // TEMP DIAGNOSTIC
                 tmp.absolutePath
             }
         }

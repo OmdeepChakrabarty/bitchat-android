@@ -415,6 +415,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
             viewModel.sendVoiceNote(peer, onionOrChannel, path)
         },
         onSendImageNote = { peer, onionOrChannel, path ->
+            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-1] image picked peer=$peer channel=$onionOrChannel path=$path") // TEMP DIAGNOSTIC
             viewModel.sendImageNote(peer, onionOrChannel, path)
         },
         onSendFileNote = { peer, onionOrChannel, path ->

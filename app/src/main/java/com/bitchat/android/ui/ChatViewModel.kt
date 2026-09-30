@@ -97,6 +97,7 @@ class ChatViewModel(
     }
 
     fun sendImageNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
+        com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-2] viewModel.sendImageNote peer=$toPeerIDOrNull channel=$channelOrNull path=$filePath") // TEMP DIAGNOSTIC
         mediaSendingManager.sendImageNote(toPeerIDOrNull, channelOrNull, filePath)
     }
 

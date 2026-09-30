@@ -355,6 +355,62 @@ fun DebugSettingsSheet(
             item {
                 DistributionInfoSection(distributionInfo)
             }
+            // TEMP DIAGNOSTIC (image-send debugging): in-app view of ImageSendDiagnostics.
+            // Remove this item together with ImageSendDiagnostics.kt and its call sites.
+            item {
+                val diagLines = remember { mutableStateOf(ImageSendDiagnostics.snapshot()) }
+                LaunchedEffect(isPresented) {
+                    while (true) {
+                        diagLines.value = ImageSendDiagnostics.snapshot()
+                        kotlinx.coroutines.delay(500)
+                    }
+                }
+                Surface(shape = RoundedCornerShape(12.dp), color = colorScheme.surfaceVariant.copy(alpha = 0.2f)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Filled.BugReport, contentDescription = null, tint = Color(0xFFFF9500))
+                            Text("Image send diagnostics", fontFamily = BitchatFontFamily, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AssistChip(
+                                onClick = {
+                                    val text = diagLines.value.joinToString("\n")
+                                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                    clipboard?.setPrimaryClip(
+                                        ClipData.newPlainText("Image send diagnostics", text)
+                                    )
+                                    Toast.makeText(context, "Diagnostics copied (${diagLines.value.size} lines)", Toast.LENGTH_SHORT).show()
+                                },
+                                label = { Text("Copy all") }
+                            )
+                            AssistChip(
+                                onClick = {
+                                    ImageSendDiagnostics.clear()
+                                    diagLines.value = emptyList()
+                                },
+                                label = { Text("Clear") }
+                            )
+                        }
+                        if (diagLines.value.isEmpty()) {
+                            Text(
+                                "No entries yet — send an image, then reopen this sheet.",
+                                fontFamily = BitchatFontFamily,
+                                fontSize = 11.sp,
+                                color = colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        } else {
+                            diagLines.value.takeLast(100).forEach { line ->
+                                Text(
+                                    line,
+                                    fontFamily = BitchatFontFamily,
+                                    fontSize = 10.sp,
+                                    color = colorScheme.onSurface.copy(alpha = 0.85f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             // Verbose logging toggle
             item {
                 Surface(shape = RoundedCornerShape(12.dp), color = colorScheme.surfaceVariant.copy(alpha = 0.2f)) {

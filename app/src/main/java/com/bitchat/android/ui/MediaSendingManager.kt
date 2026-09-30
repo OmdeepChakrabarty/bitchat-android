@@ -184,30 +184,38 @@ class MediaSendingManager(
         try {
             val filePacket = withContext(mediaWorkDispatcher) {
                 val file = java.io.File(filePath)
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-4a] image file exists=${file.exists()} size=${file.length()} path=$filePath") // TEMP DIAGNOSTIC
                 if (!file.exists()) {
                     Log.e(TAG, "Image file does not exist")
+                    com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-4a] ABORT: image file does not exist") // TEMP DIAGNOSTIC
                     return@withContext null
                 }
 
                 if (rejectIfOversized(file, toPeerIDOrNull, channelOrNull)) {
+                    com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-4b] ABORT: file too large (${file.length()} bytes)") // TEMP DIAGNOSTIC
                     return@withContext null
                 }
 
-                BitchatFilePacket(
+                val packet = BitchatFilePacket(
                     fileName = file.name,
                     fileSize = file.length(),
                     mimeType = "image/jpeg",
                     content = file.readBytes()
                 )
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-4c] packet created name=${packet.fileName} mime=${packet.mimeType} bytes=${packet.content.size}") // TEMP DIAGNOSTIC
+                packet
             } ?: return
 
             if (toPeerIDOrNull != null) {
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-4d] routing: PRIVATE toPeerID=$toPeerIDOrNull") // TEMP DIAGNOSTIC
                 sendPrivateFile(toPeerIDOrNull, filePacket, filePath, BitchatMessageType.Image)
             } else {
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-4d] routing: PUBLIC channel=$channelOrNull") // TEMP DIAGNOSTIC
                 sendPublicFile(channelOrNull, filePacket, filePath, BitchatMessageType.Image)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Image send failed: ${e.message}", e)
+            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-ERR] sendImageNoteAsync exception: ${e::class.java.simpleName}: ${e.message}") // TEMP DIAGNOSTIC
         }
     }
 
@@ -295,20 +303,24 @@ class MediaSendingManager(
         val payload = withContext(mediaWorkDispatcher) { filePacket.encode() }
             ?: run {
                 Log.e(TAG, "Failed to encode file packet for private send")
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-5a] ABORT: file packet encode() failed for private send") // TEMP DIAGNOSTIC
                 return
             }
 
         val transferId = withContext(mediaWorkDispatcher) {
             sha256Hex(payload)
         }
+        com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-5b] transferId=$transferId") // TEMP DIAGNOSTIC
         val recipient = PrivateMediaRecipientResolver.resolve(toPeerID, meshService)
             ?: run {
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-5c] ABORT: recipient resolution FAILED toPeerID=$toPeerID (no active mesh route)") // TEMP DIAGNOSTIC
                 addPrivateMediaSystemMessage(
                     toPeerID,
                     "Private media was not sent because this conversation has no active mesh route."
                 )
                 return
             }
+        com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-5d] recipient resolved conversationID=${recipient.conversationID} meshPeerID=${recipient.meshPeerID}") // TEMP DIAGNOSTIC
 
         val pending = PendingAutomaticPrivateMedia(
             requestId = UUID.randomUUID().toString(),
@@ -321,12 +333,14 @@ class MediaSendingManager(
             allowLegacyFallback = false
         )
         if (!reserveAutomaticPending(pending)) {
+            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-5e] ABORT: another secure media send is still pending") // TEMP DIAGNOSTIC
             addPrivateMediaSystemMessage(
                 recipient.conversationID,
                 "Private media was not sent because another secure media send is still pending."
             )
             return
         }
+        com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-5f] pending reserved, evaluating automatic policy") // TEMP DIAGNOSTIC
         evaluateAutomaticPending(pending)
     }
 
@@ -388,6 +402,7 @@ class MediaSendingManager(
             pendingAutomaticPrivateMedia
                 ?.takeIf { it.recipientMeshPeerID == peerID }
         } ?: return
+        com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-6g] retry triggered for peer=$peerID (peer-state proof / watchdog resolved)") // TEMP DIAGNOSTIC
         evaluateAutomaticPending(pending)
     }
 
@@ -447,6 +462,7 @@ class MediaSendingManager(
     ) {
         when (preparation) {
             is PrivateMediaPreparation.Ready -> {
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-6a] prepare=Ready (encrypted session available)") // TEMP DIAGNOSTIC
                 clearAutomaticPending(pending.requestId)
                 commitPreparedPrivateFile(
                     preparation,
@@ -459,9 +475,11 @@ class MediaSendingManager(
             }
 
             is PrivateMediaPreparation.RequiresLegacyConsent -> {
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-6b] prepare=RequiresLegacyConsent warning=${preparation.warning}") // TEMP DIAGNOSTIC
                 clearAutomaticPending(pending.requestId)
                 if (pending.allowLegacyFallback) {
                     Log.w(TAG, "Legacy consent was consumed but policy still requested consent; send aborted")
+                    com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-6b] ABORT: legacy consent consumed but policy still requested consent") // TEMP DIAGNOSTIC
                     addPrivateMediaSystemMessage(
                         pending.conversationID,
                         "Private media was not sent because its security policy changed."
@@ -482,6 +500,7 @@ class MediaSendingManager(
                 synchronized(pendingConsentLock) {
                     if (pendingPrivateMedia != null) {
                         Log.w(TAG, "A legacy private-media consent prompt is already pending")
+                        com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-6b] ABORT: another legacy consent prompt already pending") // TEMP DIAGNOSTIC
                         return
                     }
                     pendingPrivateMedia = PendingPrivateMedia(
@@ -500,6 +519,7 @@ class MediaSendingManager(
             PrivateMediaPreparation.NeedsHandshake -> {
                 ensureAutomaticPendingTimeout(pending)
                 Log.d(TAG, "Private media needs a Noise handshake; retaining first-send intent")
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-6c] prepare=NeedsHandshake — initiating handshake, first-send intent retained") // TEMP DIAGNOSTIC
                 try {
                     meshService.initiateNoiseHandshake(pending.recipientMeshPeerID)
                 } catch (e: Exception) {
@@ -510,11 +530,13 @@ class MediaSendingManager(
             PrivateMediaPreparation.AwaitingPeerState -> {
                 ensureAutomaticPendingTimeout(pending)
                 Log.d(TAG, "Private media is waiting for authenticated peer state; first-send intent retained")
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-6d] prepare=AwaitingPeerState — first-send intent retained") // TEMP DIAGNOSTIC
             }
 
             is PrivateMediaPreparation.Rejected -> {
                 clearAutomaticPending(pending.requestId)
                 Log.w(TAG, "Private media not sent: ${preparation.reason}")
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-6e] ABORT: prepare=Rejected reason=${preparation.reason}") // TEMP DIAGNOSTIC
                 addPrivateMediaSystemMessage(
                     pending.conversationID,
                     "Private media was not sent: ${preparation.reason}"
@@ -555,6 +577,7 @@ class MediaSendingManager(
                 }
             }
             if (expired) {
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-6f] ABORT: pending expired after 15s (handshake/peer-state never completed)") // TEMP DIAGNOSTIC
                 addPrivateMediaSystemMessage(
                     pending.conversationID,
                     "Private media was not sent because secure session setup timed out."
@@ -609,6 +632,7 @@ class MediaSendingManager(
     ) {
         if (preparation.transfer.transferId != transferId) {
             Log.e(TAG, "Prepared private-media transfer ID changed; send aborted")
+            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-7a] ABORT: transferId mismatch prepared=${preparation.transfer.transferId} expected=$transferId") // TEMP DIAGNOSTIC
             return
         }
 
@@ -632,6 +656,7 @@ class MediaSendingManager(
         // progress before commit so the first asynchronous event cannot race us.
         if (!messageManager.addPrivateMessageDurably(conversationID, msg, forceRead = true)) {
             Log.e(TAG, "Prepared private-media message could not be persisted; send aborted")
+            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-7b] ABORT: addPrivateMessageDurably failed (conversation could not be saved)") // TEMP DIAGNOSTIC
             addPrivateMediaSystemMessage(
                 conversationID,
                 "Private media was not sent because the conversation could not be saved."
@@ -646,6 +671,7 @@ class MediaSendingManager(
             msg.id,
             com.bitchat.android.model.DeliveryStatus.PartiallyDelivered(0, 100)
         )
+        com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-7c] local echo committed id=${msg.id} status=PartiallyDelivered(0,100)") // TEMP DIAGNOSTIC
 
         if (!preparation.transfer.commit()) {
             synchronized(transferMessageMap) {
@@ -659,12 +685,14 @@ class MediaSendingManager(
                 )
             )
             Log.w(TAG, "Prepared private-media commit failed; local echo marked failed")
+            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-7d] ABORT: transfer.commit() FAILED; local echo marked Failed") // TEMP DIAGNOSTIC
             addPrivateMediaSystemMessage(
                 conversationID,
                 "Private media was not sent because the prepared transfer could not be committed."
             )
             return
         }
+        com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-7e] transfer.commit() OK — awaiting progress events") // TEMP DIAGNOSTIC
     }
 
     /**
@@ -771,6 +799,7 @@ class MediaSendingManager(
         val msgId = synchronized(transferMessageMap) { transferMessageMap[evt.transferId] }
         if (msgId != null) {
             if (evt.failed) {
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-8b] transfer FAILED transferId=${evt.transferId} msgId=$msgId") // TEMP DIAGNOSTIC
                 messageManager.updateMessageDeliveryStatus(
                     msgId,
                     com.bitchat.android.model.DeliveryStatus.Failed("transfer could not be sent")
@@ -780,6 +809,7 @@ class MediaSendingManager(
                     if (msgIdRemoved != null) messageTransferMap.remove(msgIdRemoved)
                 }
             } else if (evt.completed) {
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-8c] transfer COMPLETED transferId=${evt.transferId} msgId=$msgId → Delivered (local, not receiver-confirmed)") // TEMP DIAGNOSTIC
                 messageManager.updateMessageDeliveryStatus(
                     msgId,
                     com.bitchat.android.model.DeliveryStatus.Delivered(to = "mesh", at = java.util.Date())
@@ -789,11 +819,14 @@ class MediaSendingManager(
                     if (msgIdRemoved != null) messageTransferMap.remove(msgIdRemoved)
                 }
             } else {
+                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-8d] progress transferId=${evt.transferId} sent=${evt.sent}/${evt.total}") // TEMP DIAGNOSTIC
                 messageManager.updateMessageDeliveryStatus(
                     msgId,
                     com.bitchat.android.model.DeliveryStatus.PartiallyDelivered(evt.sent, evt.total)
                 )
             }
+        } else {
+            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-8a] progress event for UNKNOWN transferId=${evt.transferId} failed=${evt.failed} completed=${evt.completed} (map miss)") // TEMP DIAGNOSTIC
         }
     }
 
