@@ -355,13 +355,12 @@ fun DebugSettingsSheet(
             item {
                 DistributionInfoSection(distributionInfo)
             }
-            // TEMP DIAGNOSTIC (image-send debugging): in-app view of ImageSendDiagnostics.
-            // Remove this item together with ImageSendDiagnostics.kt and its call sites.
+            // In-app diagnostics viewer for the message and media paths.
             item {
-                val diagLines = remember { mutableStateOf(ImageSendDiagnostics.snapshot()) }
+                val diagLines = remember { mutableStateOf(MessageDiagnostics.snapshot()) }
                 LaunchedEffect(isPresented) {
                     while (true) {
-                        diagLines.value = ImageSendDiagnostics.snapshot()
+                        diagLines.value = MessageDiagnostics.snapshot()
                         kotlinx.coroutines.delay(500)
                     }
                 }
@@ -369,7 +368,7 @@ fun DebugSettingsSheet(
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Filled.BugReport, contentDescription = null, tint = Color(0xFFFF9500))
-                            Text("Image send diagnostics", fontFamily = BitchatFontFamily, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text("Message diagnostics", fontFamily = BitchatFontFamily, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             AssistChip(
@@ -377,7 +376,7 @@ fun DebugSettingsSheet(
                                     val text = diagLines.value.joinToString("\n")
                                     val clipboard = context.getSystemService(ClipboardManager::class.java)
                                     clipboard?.setPrimaryClip(
-                                        ClipData.newPlainText("Image send diagnostics", text)
+                                        ClipData.newPlainText("Message diagnostics", text)
                                     )
                                     Toast.makeText(context, "Diagnostics copied (${diagLines.value.size} lines)", Toast.LENGTH_SHORT).show()
                                 },
@@ -385,7 +384,7 @@ fun DebugSettingsSheet(
                             )
                             AssistChip(
                                 onClick = {
-                                    ImageSendDiagnostics.clear()
+                                    MessageDiagnostics.clear()
                                     diagLines.value = emptyList()
                                 },
                                 label = { Text("Clear") }
@@ -393,7 +392,7 @@ fun DebugSettingsSheet(
                         }
                         if (diagLines.value.isEmpty()) {
                             Text(
-                                "No entries yet — send an image, then reopen this sheet.",
+                                "No entries yet — send or receive a message, then reopen this sheet.",
                                 fontFamily = BitchatFontFamily,
                                 fontSize = 11.sp,
                                 color = colorScheme.onSurface.copy(alpha = 0.6f)

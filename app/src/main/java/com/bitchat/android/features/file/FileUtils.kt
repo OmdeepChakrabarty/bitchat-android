@@ -12,6 +12,7 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import com.bitchat.android.ui.debug.MessageDiagnostics
 
 object FileUtils {
 
@@ -236,10 +237,10 @@ object FileUtils {
         return try {
             val out = java.io.File(dir, safeName)
             out.outputStream().use { it.write(file.content) }
-            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-4a] saveIncomingFile wrote ${file.content.size} bytes → ${out.absolutePath}") // TEMP DIAGNOSTIC
+            MessageDiagnostics.rx("media.save", "result=ok name=$safeName bytes=${file.content.size}")
             out.absolutePath
         } catch (primaryError: Exception) {
-            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-4z] saveIncomingFile EXCEPTION (primary): ${primaryError::class.java.simpleName}: ${primaryError.message}") // TEMP DIAGNOSTIC
+            MessageDiagnostics.rx("media.save", "result=failed target=primary error=${primaryError::class.java.simpleName}: ${primaryError.message}")
             // Fallback to cache dir with uniqueness
             try {
                 var fallback = safeName
@@ -257,13 +258,13 @@ object FileUtils {
                 }
                 val out = java.io.File(context.cacheDir, fallback)
                 out.outputStream().use { it.write(file.content) }
-                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-4b] saveIncomingFile wrote ${file.content.size} bytes (fallback) → ${out.absolutePath}") // TEMP DIAGNOSTIC
+                MessageDiagnostics.rx("media.save", "result=ok target=fallback name=$fallback bytes=${file.content.size}")
                 out.absolutePath
             } catch (fallbackError: Exception) {
-                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-4z] saveIncomingFile EXCEPTION (fallback): ${fallbackError::class.java.simpleName}: ${fallbackError.message}") // TEMP DIAGNOSTIC
+                MessageDiagnostics.rx("media.save", "result=failed target=fallback error=${fallbackError::class.java.simpleName}: ${fallbackError.message}")
                 val tmp = java.io.File.createTempFile(if (isImage) "img_" else "file_", if (isImage) ".jpg" else ".bin")
                 tmp.writeBytes(file.content)
-                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-4c] saveIncomingFile wrote ${file.content.size} bytes (temp) → ${tmp.absolutePath}") // TEMP DIAGNOSTIC
+                MessageDiagnostics.rx("media.save", "result=ok target=temp bytes=${file.content.size}")
                 tmp.absolutePath
             }
         }

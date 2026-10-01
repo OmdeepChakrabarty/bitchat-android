@@ -49,6 +49,7 @@ import com.bitchat.android.ui.media.FullScreenImageViewer
 import com.bitchat.android.ui.theme.BitchatMotion
 import com.bitchat.android.ui.theme.LocalBitchatPalette
 import com.bitchat.android.ui.theme.ChatVisualTokens
+import com.bitchat.android.ui.debug.MessageDiagnostics
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
@@ -415,7 +416,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
             viewModel.sendVoiceNote(peer, onionOrChannel, path)
         },
         onSendImageNote = { peer, onionOrChannel, path ->
-            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-1] image picked peer=$peer channel=$onionOrChannel path=$path") // TEMP DIAGNOSTIC
+            MessageDiagnostics.tx("media.picked", "peer=${MessageDiagnostics.peer(peer)} channel=${onionOrChannel ?: "timeline"} file=${path.substringAfterLast("/")}")
             viewModel.sendImageNote(peer, onionOrChannel, path)
         },
         onSendFileNote = { peer, onionOrChannel, path ->

@@ -14,6 +14,7 @@ import com.bitchat.android.features.voice.LiveVoiceManager
 import com.bitchat.android.features.voice.LiveVoiceScope
 import kotlinx.coroutines.*
 import java.util.*
+import com.bitchat.android.ui.debug.MessageDiagnostics
 
 sealed class AnnounceHandlingResult {
     data class Accepted(val isFirst: Boolean) : AnnounceHandlingResult()
@@ -117,6 +118,7 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
                         
                         // Notify delegate
                         delegate?.onMessageReceived(message)
+                        MessageDiagnostics.rx("text.received", "route=noise-private peer=${MessageDiagnostics.peer(peerID)} chars=${message.content.length} message=${message.id.take(16)}")
                         
                         // Send delivery ACK exactly like iOS
                         sendDeliveryAck(privateMessage.messageID, peerID)
@@ -128,7 +130,7 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
                     val file = com.bitchat.android.model.BitchatFilePacket.decode(noisePayload.data)
                     if (file != null) {
                         Log.d(TAG, "Encrypted file from $peerID: ${file.fileSize} bytes")
-                        com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-1a] FILE_TRANSFER (noise) received from=$peerID size=${file.fileSize} mime=${file.mimeType}") // TEMP DIAGNOSTIC
+                        MessageDiagnostics.rx("media.received", "route=noise-private peer=${MessageDiagnostics.peer(peerID)} bytes=${file.fileSize} mime=${file.mimeType}")
                         val uniqueMsgId = java.util.UUID.randomUUID().toString().uppercase()
                         val savedPath = com.bitchat.android.features.file.FileUtils.saveIncomingFile(appContext, file)
                         val message = BitchatMessage(
@@ -145,16 +147,16 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
 
                         if (!LiveVoiceManager.getInstance(appContext).absorbFinalizedVoiceNote(message)) {
                             delegate?.onMessageReceived(message)
-                            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-1b] message created id=$uniqueMsgId path=$savedPath → onMessageReceived") // TEMP DIAGNOSTIC
+                            MessageDiagnostics.rx("media.saved", "route=noise-private message=${uniqueMsgId.take(16)} peer=${MessageDiagnostics.peer(peerID)}")
                         } else {
-                            com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-1c] file absorbed by LiveVoiceManager (not an image path)") // TEMP DIAGNOSTIC
+                            MessageDiagnostics.rx("media.absorbed", "route=noise-private reason=absorbed-by-voice-manager")
                         }
 
                         // Send delivery ACK with generated message ID
                         sendDeliveryAck(uniqueMsgId, peerID)
                     } else {
                         Log.w(TAG, "Failed to decode encrypted file transfer from $peerID")
-                        com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-1z] FILE_TRANSFER (noise) DECODE FAILED from=$peerID bytes=${noisePayload.data.size}") // TEMP DIAGNOSTIC
+                        MessageDiagnostics.rx("media.decode", "result=failed route=noise-private peer=${MessageDiagnostics.peer(peerID)} bytes=${noisePayload.data.size}")
                     }
                 }
 
@@ -471,7 +473,7 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
             val isFileTransfer = com.bitchat.android.protocol.MessageType.fromValue(packet.type) == com.bitchat.android.protocol.MessageType.FILE_TRANSFER
             val file = com.bitchat.android.model.BitchatFilePacket.decode(packet.payload)
             if (file != null) {
-                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-3a] FILE_TRANSFER (broadcast) received from=$peerID size=${file.fileSize} mime=${file.mimeType}") // TEMP DIAGNOSTIC
+                MessageDiagnostics.rx("media.received", "route=broadcast peer=${MessageDiagnostics.peer(peerID)} bytes=${file.fileSize} mime=${file.mimeType}")
                 val savedPath = com.bitchat.android.features.file.FileUtils.saveIncomingFile(appContext, file)
                 val message = BitchatMessage(
                     id = PacketIdUtil.computeIdHex(packet).uppercase(),
@@ -483,12 +485,12 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
                 )
                 if (!LiveVoiceManager.getInstance(appContext).absorbFinalizedVoiceNote(message)) {
                     delegate?.onMessageReceived(message)
-                    com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-3b] broadcast message created id=${message.id} path=$savedPath → onMessageReceived") // TEMP DIAGNOSTIC
+                    MessageDiagnostics.rx("media.saved", "route=broadcast message=${message.id.take(16)} peer=${MessageDiagnostics.peer(peerID)}")
                 }
                 return
             } else if (isFileTransfer) {
                 Log.w(TAG, "FILE_TRANSFER decode failed (broadcast) from ${peerID.take(8)}")
-                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-3z] FILE_TRANSFER (broadcast) DECODE FAILED from=$peerID payloadSize=${packet.payload.size}") // TEMP DIAGNOSTIC
+                MessageDiagnostics.rx("media.decode", "result=failed route=broadcast peer=${MessageDiagnostics.peer(peerID)} bytes=${packet.payload.size}")
             }
 
             // Fallback: plain text
@@ -499,9 +501,11 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
                 senderPeerID = peerID,
                 timestamp = Date(packet.timestamp.toLong())
             )
+            MessageDiagnostics.rx("text.received", "route=broadcast peer=${MessageDiagnostics.peer(peerID)} chars=${message.content.length} message=${message.id.take(16)}")
             delegate?.onMessageReceived(message)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to process broadcast message: ${e.message}")
+            MessageDiagnostics.rx("text.error", "route=broadcast peer=${MessageDiagnostics.peer(peerID)} error=${e::class.java.simpleName}: ${e.message}")
         }
     }
     
@@ -532,7 +536,7 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
             // Try file packet first (voice, image, etc.) and log outcome for FILE_TRANSFER
             val file = com.bitchat.android.model.BitchatFilePacket.decode(packet.payload)
             if (file != null) {
-                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-2a] FILE_TRANSFER (directed) received from=$peerID size=${file.fileSize} mime=${file.mimeType}") // TEMP DIAGNOSTIC
+                MessageDiagnostics.rx("media.received", "route=directed-private peer=${MessageDiagnostics.peer(peerID)} bytes=${file.fileSize} mime=${file.mimeType}")
                 val savedPath = com.bitchat.android.features.file.FileUtils.saveIncomingFile(appContext, file)
                 val message = BitchatMessage(
                     id = java.util.UUID.randomUUID().toString().uppercase(),
@@ -547,14 +551,14 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
                 Log.d(TAG, "📄 Saved incoming file to $savedPath")
                 if (!LiveVoiceManager.getInstance(appContext).absorbFinalizedVoiceNote(message)) {
                     delegate?.onMessageReceived(message)
-                    com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-2b] directed message created id=${message.id} path=$savedPath → onMessageReceived") // TEMP DIAGNOSTIC
+                    MessageDiagnostics.rx("media.saved", "route=directed-private message=${message.id.take(16)} peer=${MessageDiagnostics.peer(peerID)}")
                 } else {
-                    com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-2c] file absorbed by LiveVoiceManager (not an image path)") // TEMP DIAGNOSTIC
+                    MessageDiagnostics.rx("media.absorbed", "route=directed-private reason=absorbed-by-voice-manager")
                 }
                 return
             } else if (isFileTransfer) {
                 Log.w(TAG, "⚠️ FILE_TRANSFER decode failed (private) from ${peerID.take(8)} payloadSize=${packet.payload.size}")
-                com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[RX-2z] FILE_TRANSFER (directed) DECODE FAILED from=$peerID payloadSize=${packet.payload.size}") // TEMP DIAGNOSTIC
+                MessageDiagnostics.rx("media.decode", "result=failed route=directed-private peer=${MessageDiagnostics.peer(peerID)} bytes=${packet.payload.size}")
             }
 
             // Fallback: plain text
@@ -565,9 +569,11 @@ class MessageHandler(private val myPeerID: String, private val appContext: andro
                 timestamp = Date(packet.timestamp.toLong())
             )
             delegate?.onMessageReceived(message)
+            MessageDiagnostics.rx("text.received", "route=directed-private peer=${MessageDiagnostics.peer(peerID)} chars=${message.content.length}")
 
         } catch (e: Exception) {
             Log.e(TAG, "Failed to process private message from $peerID: ${e.message}")
+            MessageDiagnostics.rx("text.error", "route=directed-private peer=${MessageDiagnostics.peer(peerID)} error=${e::class.java.simpleName}: ${e.message}")
         }
     }
 

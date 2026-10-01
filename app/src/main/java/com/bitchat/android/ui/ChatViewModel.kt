@@ -42,6 +42,7 @@ import com.bitchat.android.util.hexEncodedString
 import com.bitchat.android.features.voice.LiveVoicePreferences
 import com.bitchat.android.features.voice.LiveVoiceTarget
 import com.bitchat.android.features.voice.VoiceRecorder
+import com.bitchat.android.ui.debug.MessageDiagnostics
 
 private data class ConversationLiveIdentityState(
     val connectedPeerIDs: List<String>,
@@ -97,7 +98,7 @@ class ChatViewModel(
     }
 
     fun sendImageNote(toPeerIDOrNull: String?, channelOrNull: String?, filePath: String) {
-        com.bitchat.android.ui.debug.ImageSendDiagnostics.log("[TX-2] viewModel.sendImageNote peer=$toPeerIDOrNull channel=$channelOrNull path=$filePath") // TEMP DIAGNOSTIC
+        MessageDiagnostics.tx("media.send-request", "peer=${MessageDiagnostics.peer(toPeerIDOrNull)} channel=${channelOrNull ?: "timeline"}")
         mediaSendingManager.sendImageNote(toPeerIDOrNull, channelOrNull, filePath)
     }
 
@@ -1017,6 +1018,7 @@ class ChatViewModel(
                     }
                 }
             }
+            MessageDiagnostics.tx("text.send", "route=private peer=${MessageDiagnostics.peer(selectedPeer)} chars=${content.length}")
             // Send private message
             val recipientNickname = nicknameForPeer(selectedPeer)
             val destination = selectedPeer
@@ -1051,6 +1053,7 @@ class ChatViewModel(
             // Check if we're in a location channel
             val selectedLocationChannel = state.selectedLocationChannel.value
             if (selectedLocationChannel is com.bitchat.android.geohash.ChannelID.Location) {
+                MessageDiagnostics.tx("text.send", "route=geohash channel=${selectedLocationChannel.channel.geohash} chars=${content.length}")
                 // Send to geohash channel via Nostr ephemeral event
                 geohashViewModel.sendGeohashMessage(content, selectedLocationChannel.channel, mesh.myPeerID, state.getNicknameValue())
             } else {
@@ -1066,6 +1069,7 @@ class ChatViewModel(
                 )
 
                 if (currentChannelValue != null) {
+                    MessageDiagnostics.tx("text.send", "route=mesh-channel channel=$currentChannelValue encrypted=${channelManager.hasChannelKey(currentChannelValue)} chars=${content.length}")
                     channelManager.addChannelMessage(currentChannelValue, message, mesh.myPeerID)
 
                     // Check if encrypted channel
@@ -1087,6 +1091,7 @@ class ChatViewModel(
                         mesh.sendMessage(content, mentions, currentChannelValue)
                     }
                 } else {
+                    MessageDiagnostics.tx("text.send", "route=mesh-timeline chars=${content.length}")
                     messageManager.addMessage(message)
                     mesh.sendMessage(content, mentions, null)
                 }
