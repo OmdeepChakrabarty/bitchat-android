@@ -2,10 +2,17 @@ package com.bitchat.android.ui
 
 import com.bitchat.android.mesh.MeshService
 import com.bitchat.android.model.BitchatMessage
+import com.bitchat.android.ui.debug.MessageDiagnostics
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+
+/**
+ * Marks an `/sos` broadcast so it is distinguishable from ordinary chatter at a glance.
+ * An optional note follows it on the same line.
+ */
+internal const val SOS_PREFIX = "🆘 SOS"
 
 /**
  * Handles processing of IRC-style commands
@@ -18,20 +25,6 @@ class CommandProcessor(
     private val coroutineScope: CoroutineScope? = null
 ) {
     
-    // Available commands list
-    private val baseCommands = listOf(
-        CommandSuggestion("/block", emptyList(), "[nickname]", "block or list blocked peers"),
-        CommandSuggestion("/channels", emptyList(), null, "show all discovered channels"),
-        CommandSuggestion("/clear", emptyList(), null, "clear chat messages"),
-        CommandSuggestion("/hug", emptyList(), "<nickname>", "send someone a warm hug"),
-        CommandSuggestion("/j", listOf("/join"), "<channel>", "join or create a channel"),
-        CommandSuggestion("/m", listOf("/msg"), "<nickname> [message]", "send private message"),
-        CommandSuggestion("/pay", emptyList(), "<token> [public]", "send a Cashu ecash token"),
-        CommandSuggestion("/slap", emptyList(), "<nickname>", "slap someone with a trout"),
-        CommandSuggestion("/unblock", emptyList(), "<nickname>", "unblock a peer"),
-        CommandSuggestion("/w", emptyList(), null, "see who's online")
-    )
-    
     // MARK: - Command Processing
     
     fun processCommand(command: String, meshService: MeshService, myPeerID: String, onSendMessage: (String, List<String>, String?) -> Unit, viewModel: ChatViewModel? = null): Boolean {
@@ -39,23 +32,48 @@ class CommandProcessor(
         
         val parts = command.split(" ")
         val cmd = parts.first().lowercase()
-        when (cmd) {
-            "/j", "/join" -> handleJoinCommand(parts, myPeerID)
-            "/m", "/msg" -> handleMessageCommand(parts, meshService, viewModel)
-            "/pay" -> handlePayCommand(command, meshService, myPeerID, onSendMessage, viewModel)
-            "/w" -> handleWhoCommand(meshService, viewModel)
-            "/clear" -> handleClearCommand()
-            "/pass" -> handlePassCommand(parts, myPeerID)
-            "/block" -> handleBlockCommand(parts, meshService)
-            "/unblock" -> handleUnblockCommand(parts, meshService)
-            "/hug" -> handleActionCommand(parts, "gives", "a warm hug 🫂", meshService, myPeerID, onSendMessage, viewModel)
-            "/slap" -> handleActionCommand(parts, "slaps", "around a bit with a large trout 🐟", meshService, myPeerID, onSendMessage, viewModel)
-            "/channels" -> handleChannelsCommand()
-            else -> handleUnknownCommand(cmd)
+        val definition = CommandRegistry.find(cmd)
+        // Arguments are deliberately not logged: /pass takes a password and /pay a bearer token.
+        MessageDiagnostics.sys("command", "name=$cmd resolved=${definition?.command ?: "none"}")
+        if (definition == null) {
+            handleUnknownCommand(cmd)
+            return true
+        }
+        val context = currentContext()
+        if (definition.meshOnly && !context.isMesh) {
+            addSystemMessage("${definition.command} only works in the mesh timeline or a mesh channel.")
+            return true
+        }
+        when (definition.handlerId) {
+            CommandHandlerId.Join -> handleJoinCommand(parts, myPeerID)
+            CommandHandlerId.Message -> handleMessageCommand(parts, meshService, viewModel)
+            CommandHandlerId.Pay -> handlePayCommand(command, meshService, myPeerID, onSendMessage, viewModel)
+            CommandHandlerId.Who -> handleWhoCommand(meshService, viewModel)
+            CommandHandlerId.Clear -> handleClearCommand()
+            CommandHandlerId.Pass -> handlePassCommand(parts, myPeerID)
+            CommandHandlerId.Block -> handleBlockCommand(parts, meshService)
+            CommandHandlerId.Unblock -> handleUnblockCommand(parts, meshService)
+            CommandHandlerId.Hug -> handleActionCommand(parts, "gives", "a warm hug 🫂", meshService, myPeerID, onSendMessage, viewModel)
+            CommandHandlerId.Slap -> handleActionCommand(parts, "slaps", "around a bit with a large trout 🐟", meshService, myPeerID, onSendMessage, viewModel)
+            CommandHandlerId.Channels -> handleChannelsCommand()
+            CommandHandlerId.Transfer -> handleTransferCommand(parts, meshService, myPeerID)
+            CommandHandlerId.Sos -> handleSosCommand(parts.drop(1).joinToString(" ").trim(), onSendMessage, myPeerID)
+            CommandHandlerId.Help -> addSystemMessage(CommandRegistry.helpText(context))
         }
         
         return true
     }
+    
+    /**
+     * Where the command was typed. Drives the suggestions offered, the restriction `/sos`
+     * enforces, and which conversation a command's reply is posted into.
+     */
+    private fun currentContext(): CommandContext = CommandContext(
+        inPrivateChat = state.getSelectedPrivateChatPeerValue() != null,
+        inChannel = state.getCurrentChannelValue() != null,
+        inPublicGeohash = state.getSelectedPrivateChatPeerValue() == null &&
+            state.selectedLocationChannel.value is com.bitchat.android.geohash.ChannelID.Location
+    )
     
     private fun handleJoinCommand(parts: List<String>, myPeerID: String) {
         if (parts.size > 1) {
@@ -64,22 +82,10 @@ class CommandProcessor(
             val password = if (parts.size > 2) parts[2] else null
             val success = channelManager.joinChannel(channel, password, myPeerID)
             if (success) {
-                val systemMessage = BitchatMessage(
-                    sender = "system",
-                    content = "joined channel $channel",
-                    timestamp = Date(),
-                    isRelay = false
-                )
-                messageManager.addMessage(systemMessage)
+                addSystemMessage("joined channel $channel")
             }
         } else {
-            val systemMessage = BitchatMessage(
-                sender = "system",
-                content = "usage: /join <channel>",
-                timestamp = Date(),
-                isRelay = false
-            )
-            messageManager.addMessage(systemMessage)
+            addSystemMessage("usage: /join <channel>")
         }
     }
     
@@ -105,32 +111,14 @@ class CommandProcessor(
                             viewModel
                         )
                     } else {
-                        val systemMessage = BitchatMessage(
-                            sender = "system",
-                            content = "started private chat with $targetName",
-                            timestamp = Date(),
-                            isRelay = false
-                        )
-                        messageManager.addMessage(systemMessage)
+                        addSystemMessage("started private chat with $targetName")
                     }
                 }
             } else {
-                val systemMessage = BitchatMessage(
-                    sender = "system",
-                    content = "user '$targetName' not found. they may be offline or using a different nickname.",
-                    timestamp = Date(),
-                    isRelay = false
-                )
-                messageManager.addMessage(systemMessage)
+                addSystemMessage("user '$targetName' not found. they may be offline or using a different nickname.")
             }
         } else {
-            val systemMessage = BitchatMessage(
-                sender = "system",
-                content = "usage: /msg <nickname> [message]",
-                timestamp = Date(),
-                isRelay = false
-            )
-            messageManager.addMessage(systemMessage)
+            addSystemMessage("usage: /msg <nickname> [message]")
         }
     }
     
@@ -175,17 +163,13 @@ class CommandProcessor(
             Pair(peerList, "online users")
         }
         
-        val systemMessage = BitchatMessage(
-            sender = "system",
-            content = if (peerList.isEmpty()) {
+        addSystemMessage(
+            if (peerList.isEmpty()) {
                 "no one else is around right now."
             } else {
                 "$contextDescription: $peerList"
-            },
-            timestamp = Date(),
-            isRelay = false
+            }
         )
-        messageManager.addMessage(systemMessage)
     }
     
     private fun handleClearCommand() {
@@ -214,13 +198,7 @@ class CommandProcessor(
         val currentChannel = state.getCurrentChannelValue()
 
         if (currentChannel == null) {
-            val systemMessage = BitchatMessage(
-                sender = "system",
-                content = "you must be in a channel to set a password.",
-                timestamp = Date(),
-                isRelay = false
-            )
-            messageManager.addMessage(systemMessage)
+            addSystemMessage("you must be in a channel to set a password.")
             return
         }
 
@@ -262,14 +240,7 @@ class CommandProcessor(
             privateChatManager.blockPeerByNickname(targetName, meshService)
         } else {
             // List blocked users
-            val blockedInfo = privateChatManager.listBlockedUsers()
-            val systemMessage = BitchatMessage(
-                sender = "system",
-                content = blockedInfo,
-                timestamp = Date(),
-                isRelay = false
-            )
-            messageManager.addMessage(systemMessage)
+            addSystemMessage(privateChatManager.listBlockedUsers())
         }
     }
     
@@ -278,13 +249,7 @@ class CommandProcessor(
             val targetName = parts[1].removePrefix("@")
             privateChatManager.unblockPeerByNickname(targetName, meshService)
         } else {
-            val systemMessage = BitchatMessage(
-                sender = "system",
-                content = "usage: /unblock <nickname>",
-                timestamp = Date(),
-                isRelay = false
-            )
-            messageManager.addMessage(systemMessage)
+            addSystemMessage("usage: /unblock <nickname>")
         }
     }
     
@@ -339,13 +304,7 @@ class CommandProcessor(
                 }
             }
         } else {
-            val systemMessage = BitchatMessage(
-                sender = "system",
-                content = "usage: /${parts[0].removePrefix("/")} <nickname>",
-                timestamp = Date(),
-                isRelay = false
-            )
-            messageManager.addMessage(systemMessage)
+            addSystemMessage("usage: /${parts[0].removePrefix("/")} <nickname>")
         }
     }
     
@@ -357,13 +316,76 @@ class CommandProcessor(
             "joined channels: ${allChannels.joinToString(", ")}"
         }
         
-        val systemMessage = BitchatMessage(
-            sender = "system",
-            content = channelList,
+        addSystemMessage(channelList)
+    }
+
+    /**
+     * `/transfer <nickname>` — hand channel ownership to another peer.
+     *
+     * Creator-only and requires an active channel, mirroring `/pass`. The change is recorded
+     * locally only: it is not announced to the channel, so it never adds traffic to the mesh
+     * and cannot fail as a result of the network.
+     */
+    private fun handleTransferCommand(parts: List<String>, meshService: MeshService, peerID: String) {
+        val channel = state.getCurrentChannelValue()
+        if (channel == null) {
+            addSystemMessage("usage: /transfer <nickname> — you must be in a channel to transfer it.")
+            return
+        }
+        if (!channelManager.isChannelCreator(channel = channel, peerID = peerID)) {
+            addSystemMessage("you must be the channel creator to transfer $channel.")
+            return
+        }
+        if (parts.size < 2) {
+            addSystemMessage("usage: /transfer <nickname>")
+            return
+        }
+        val targetName = parts[1].removePrefix("@")
+        val newOwner = getPeerIDForNickname(targetName, meshService)
+        if (newOwner == null) {
+            addSystemMessage("user '$targetName' not found. they may be offline or using a different nickname.")
+            return
+        }
+        if (newOwner == peerID) {
+            addSystemMessage("you already own $channel.")
+            return
+        }
+        channelManager.transferChannelOwnership(channel, newOwner)
+        addSystemMessage("transferred ownership of $channel to $targetName.")
+    }
+
+    /**
+     * `/sos [note]` — broadcast a distress call on the mesh.
+     *
+     * Mesh only: the command is refused earlier in private chats and location channels, so
+     * this handler always runs on the mesh timeline or a mesh channel. It reuses the ordinary
+     * public message path — the same one `/hug`, `/slap` and `/pay public` use — rather than
+     * introducing an SOS transport.
+     */
+    private fun handleSosCommand(
+        note: String,
+        onSendMessage: (String, List<String>, String?) -> Unit,
+        myPeerID: String
+    ) {
+        val channel = state.getCurrentChannelValue()
+        val where = if (channel != null) "in channel $channel" else "on the mesh timeline"
+        val body = if (note.isBlank()) SOS_PREFIX else "$SOS_PREFIX $note"
+        MessageDiagnostics.tx("sos", "channel=${channel ?: "timeline"} note=${note.isNotBlank()}")
+        val message = BitchatMessage(
+            sender = state.getNicknameValue() ?: myPeerID,
+            content = body,
             timestamp = Date(),
-            isRelay = false
+            isRelay = false,
+            senderPeerID = myPeerID,
+            channel = channel
         )
-        messageManager.addMessage(systemMessage)
+        if (channel != null) {
+            channelManager.addChannelMessage(channel, message, myPeerID)
+        } else {
+            messageManager.addMessage(message)
+        }
+        onSendMessage(body, emptyList(), channel)
+        addSystemMessage("sent SOS $where.")
     }
 
     private fun handlePayCommand(
@@ -456,13 +478,7 @@ class CommandProcessor(
     }
     
     private fun handleUnknownCommand(cmd: String) {
-        val systemMessage = BitchatMessage(
-            sender = "system",
-            content = "unknown command: $cmd. type / to see available commands.",
-            timestamp = Date(),
-            isRelay = false
-        )
-        messageManager.addMessage(systemMessage)
+        addSystemMessage("unknown command: $cmd. type /help to see available commands.")
     }
     
     /**
@@ -501,25 +517,8 @@ class CommandProcessor(
         }
     }
     
-    private fun getAllAvailableCommands(): List<CommandSuggestion> {
-        // Add channel-specific commands if in a channel
-        val channelCommands = if (state.getCurrentChannelValue() != null) {
-            listOf(
-                CommandSuggestion("/pass", emptyList(), "[password]", "change channel password"),
-                CommandSuggestion("/save", emptyList(), null, "save channel messages locally"),
-                CommandSuggestion("/transfer", emptyList(), "<nickname>", "transfer channel ownership")
-            )
-        } else {
-            emptyList()
-        }
-        
-        val isPublicGeohash =
-            state.getSelectedPrivateChatPeerValue() == null &&
-                state.selectedLocationChannel.value is com.bitchat.android.geohash.ChannelID.Location
-        return (baseCommands + channelCommands).filterNot {
-            isPublicGeohash && it.command == "/pay"
-        }
-    }
+    private fun getAllAvailableCommands(): List<CommandSuggestion> =
+        CommandRegistry.available(currentContext()).map { it.suggestion() }
     
     private fun filterCommands(commands: List<CommandSuggestion>, input: String): List<CommandSuggestion> {
         return commands.filter { command ->

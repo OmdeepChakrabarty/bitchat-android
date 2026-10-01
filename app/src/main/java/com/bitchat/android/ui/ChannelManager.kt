@@ -214,6 +214,17 @@ class ChannelManager(
     fun isChannelCreator(channel: String, peerID: String): Boolean {
         return dataManager.isChannelCreator(channel, peerID)
     }
+
+    /**
+     * Record a new channel owner.
+     *
+     * Local bookkeeping only: ownership is not announced to the channel, matching how
+     * [setChannelPassword] records channel state without broadcasting it. The caller is
+     * responsible for the creator-only check.
+     */
+    fun transferChannelOwnership(channel: String, newOwnerPeerID: String) {
+        dataManager.addChannelCreator(channel, newOwnerPeerID)
+    }
     
     fun getJoinedChannelsList(): List<String> {
         return state.getJoinedChannelsValue().toList().sorted()
